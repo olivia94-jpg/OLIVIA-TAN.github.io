@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GPGPU 粒子树 Demo — test.1</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #050508; font-family: system-ui, sans-serif; color: #c8c0d0; }
+    #c { display: block; width: 100%; height: 100%; }
+    #ui {
+      position: fixed; left: 10px; bottom: 10px; z-index: 2; max-width: 320px;
+      padding: 10px 12px; background: rgba(18, 14, 28, 0.92); border: 1px solid #3a3050; border-radius: 10px;
+      font-size: 12px; line-height: 1.45;
+    }
+    #ui button { margin: 4px 6px 4px 0; padding: 8px 10px; cursor: pointer; border-radius: 8px; border: 1px solid #5a5080; background: #2a2438; color: #e8e0f0; }
+    #ui button:hover { background: #3a3450; }
+    #ui .row { margin: 6px 0; }
+    #ui label { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    #ui input[type="range"] { flex: 1; }
+    #hint { opacity: 0.75; margin-top: 8px; font-size: 11px; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="ui">
+    <div><strong>粒子树 GPGPU Demo</strong></div>
+    <p style="opacity:0.9;color:#e8b060;font-size:11px;margin:4px 0;">若整页无反应：勿双击打开文件。请在终端执行 <code>npx serve -l 3456</code> 后访问 <code>http://localhost:3456/test.1.html</code></p>
+    <div class="row">
+      <button type="button" id="btnGrow">生长 +0.12</button>
+      <button type="button" id="btnPulse">模拟对话（发散→收敛）</button>
+    </div>
+    <div class="row">
+      <button type="button" id="btnFull">完整树 (g=1)</button>
+      <button type="button" id="btnReset">重置进度</button>
+    </div>
+    <label>生长 uGrowth <span id="vg">0.00</span><input type="range" id="rg" min="0" max="1" step="0.01" value="0" /></label>
+    <label>吸引 uAttract <span id="va">2.8</span><input type="range" id="ra" min="0.5" max="6" step="0.05" value="2.8" /></label>
+    <label>噪声 uNoiseInt <span id="vn">0.85</span><input type="range" id="rn" min="0.1" max="2" step="0.02" value="0.85" /></label>
+    <p id="hint">请用本地 HTTP 打开（如 npx serve），勿用 file://。若仍黑屏，看下方红字报错。</p>
+    <p id="err" style="color:#f88; margin-top:8px; white-space:pre-wrap; display:none;"></p>
+  </div>
+
+  <script type="module">
+    /**
+     * test.1.html 内联主循环：依赖 ./vector-fields.js（原 particles + tree GLSL）
+     * 必须用 http://localhost/... 打开；file:// 下 ES Module 可能被浏览器拦截。
+     */
+    import * as THREE from 'three';
+    import {
+      PARTICLE_SIM_TEXTURE_SIZE,
+      createParticleSimUniforms,
+      createVelocityStepMaterial,
+      createPositionStepMaterial,
+      getPhaseId,
+      setParticlePhase,
+    } from './vector-fields.js';
+
+    const errEl = document.getElementById('err');
+    function showErr(msg) {
+      errEl.style.display = 'block';
+      errEl.textContent = msg;
+      console.error(msg);
+    }
+
+    if (location.protocol === 'file:') {
+      showErr('当前是 file:// 协议，模块无法加载。请在项目目录运行：npx serve -l 3456\n然后打开 http://localhost:3456/test.1.html');
+    }
+
+    try {
+    const SIZE = PARTICLE_SIM_TEXTURE_SIZE;
+    const COUNT = SIZE * SIZE;
+
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    if (!renderer.getContext()) {
+      showErr('无法创建 WebGL 上下文');
+      throw new Error('no gl');
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setClearColor(0x06040c, 1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06040c);
+
+    const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.08, 80);
+    camera.position.set(0, 0.35, 3.8);
+
+    const simUniforms = createParticleSimUniforms();
+    simUniforms.tPos = { value: null };
+    simUniforms.tVel = { value: null };
+
+    /** RGBA16F 比 RGBA32F 更易被集显/WebGL2 作为颜色附件接受，避免 FBO 静默失败 */
+    const TEX_TYPE = THREE.HalfFloatType;
+
+    const mkTex = (data) => {
+      const t = new THREE.DataTexture(data, SIZE, SIZE, THREE.RGBAFormat, TEX_TYPE);
+      t.needsUpdate = true;
+      return t;
+    };
+    const mkRT = () =>
+      new THREE.WebGLRenderTarget(SIZE, SIZE, {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat,
+        type: TEX_TYPE,
+        depthBuffer: false,
+        stencilBuffer: false,
+      });
+
+    const posData = new Float32Array(COUNT * 4);
+    const velData = new Float32Array(COUNT * 4);
+    const R0 = simUniforms.uSeedRadius.value;
+    for (let i = 0; i < COUNT; i++) {
+      const u = Math.random();
+      const v = Math.random();
+      const th = u * Math.PI * 2;
+      const ph = Math.acos(2 * v - 1);
+      const r = R0 * Math.cbrt(Math.random()) * 0.95;
+      posData[i * 4] = r * Math.sin(ph) * Math.cos(th);
+      posData[i * 4 + 1] = r * Math.cos(ph) * 0.65;
+      posData[i * 4 + 2] = r * Math.sin(ph) * Math.sin(th);
+      posData[i * 4 + 3] = 0.6 + Math.random() * 0.4;
+      velData[i * 4 + 3] = 1;
+    }
+
+    const posRT = [mkRT(), mkRT()];
+    const velRT = [mkRT(), mkRT()];
+    simUniforms.tPos.value = mkTex(posData);
+    simUniforms.tVel.value = mkTex(velData);
+
+    const velMat = createVelocityStepMaterial(simUniforms);
+    const posMat = createPositionStepMaterial(simUniforms);
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), velMat);
+
+    const simScene = new THREE.Scene();
+    simScene.add(quad);
+    /** near/far 取 -1~1，避免 z=0 全屏四边形落在 near=0 边界被裁切 */
+    const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+
+    renderer.compile(simScene, simCam);
+
+    const pGeo = new THREE.BufferGeometry();
+    const refs = new Float32Array(COUNT * 2);
+    for (let i = 0; i < COUNT; i++) {
+      refs[i * 2] = (i % SIZE + 0.5) / SIZE;
+      refs[i * 2 + 1] = (Math.floor(i / SIZE) + 0.5) / SIZE;
+    }
+    pGeo.setAttribute('reference', new THREE.BufferAttribute(refs, 2));
+
+    const drawMat = new THREE.ShaderMaterial({
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        tPos: simUniforms.tPos,
+        tVel: simUniforms.tVel,
+        uPointSize: { value: 3.2 },
+      },
+      vertexShader: `
+        uniform sampler2D tPos;
+        uniform sampler2D tVel;
+        uniform float uPointSize;
+        attribute vec2 reference;
+        varying vec3 vCol;
+        varying float vA;
+        void main(){
+          vec4 pd = texture2D(tPos, reference);
+          vec3 p = pd.xyz;
+          float life = pd.w;
+          vec3 v = texture2D(tVel, reference).xyz;
+          float s = length(v);
+          vCol = mix(vec3(0.25,0.45,0.95), vec3(1.0,0.82,0.35), smoothstep(0.0, 3.0, s));
+          vCol = mix(vCol, vec3(0.95,0.35,0.85), smoothstep(0.0, 0.35, p.y));
+          vA = smoothstep(0.0, 0.12, life);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = uPointSize * (320.0 / (-mv.z + 0.85));
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying vec3 vCol;
+        varying float vA;
+        void main(){
+          vec2 q = gl_PointCoord - 0.5;
+          float d = length(q);
+          if(d > 0.5) discard;
+          float k = exp(-d * 6.0);
+          gl_FragColor = vec4(vCol * (0.85 + 0.35 * k), vA * k);
+        }
+      `,
+    });
+    const points = new THREE.Points(pGeo, drawMat);
+    points.frustumCulled = false;
+    scene.add(points);
+
+    let growth = 0;
+    simUniforms.uGrowthProgress.value = growth;
+
+    function gpgpuStep(dt, t) {
+      simUniforms.uDelta.value = dt;
+      simUniforms.uTime.value = t;
+      simUniforms.uPhase.value = getPhaseId();
+
+      quad.material = velMat;
+      renderer.setRenderTarget(velRT[1]);
+      renderer.render(simScene, simCam);
+      [velRT[0], velRT[1]] = [velRT[1], velRT[0]];
+      simUniforms.tVel.value = velRT[0].texture;
+
+      quad.material = posMat;
+      renderer.setRenderTarget(posRT[1]);
+      renderer.render(simScene, simCam);
+      [posRT[0], posRT[1]] = [posRT[1], posRT[0]];
+      simUniforms.tPos.value = posRT[0].texture;
+
+      renderer.setRenderTarget(null);
+    }
+
+    const clock = new THREE.Clock();
+    function tick() {
+      requestAnimationFrame(tick);
+      const dt = Math.min(clock.getDelta(), 0.07);
+      const t = clock.elapsedTime;
+      gpgpuStep(dt, t);
+      camera.lookAt(0, growth * 0.35 + 0.15, 0);
+      renderer.render(scene, camera);
+    }
+    tick();
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    /** 对话：CurlBoost 3~5 倍约 0.6s，随后吸引增强 */
+    function pulseDialogue() {
+      setParticlePhase('burst');
+      simUniforms.uCurlBoost.value = 4.2;
+      simUniforms.uAttractBoost.value = 0.75;
+      setTimeout(() => {
+        simUniforms.uCurlBoost.value = 1.0;
+        simUniforms.uAttractBoost.value = 1.55;
+        setParticlePhase('attract');
+      }, 600);
+      setTimeout(() => {
+        simUniforms.uAttractBoost.value = 1.0;
+        setParticlePhase('idle');
+      }, 2800);
+    }
+
+    const vg = document.getElementById('vg');
+    const rg = document.getElementById('rg');
+    rg.addEventListener('input', () => {
+      growth = parseFloat(rg.value);
+      simUniforms.uGrowthProgress.value = growth;
+      vg.textContent = growth.toFixed(2);
+    });
+
+    document.getElementById('btnGrow').onclick = () => {
+      growth = Math.min(1, growth + 0.12);
+      rg.value = String(growth);
+      simUniforms.uGrowthProgress.value = growth;
+      vg.textContent = growth.toFixed(2);
+      pulseDialogue();
+    };
+    document.getElementById('btnPulse').onclick = () => pulseDialogue();
+    document.getElementById('btnFull').onclick = () => {
+      growth = 1;
+      rg.value = '1';
+      simUniforms.uGrowthProgress.value = 1;
+      vg.textContent = '1.00';
+      pulseDialogue();
+    };
+    document.getElementById('btnReset').onclick = () => {
+      growth = 0;
+      rg.value = '0';
+      simUniforms.uGrowthProgress.value = 0;
+      vg.textContent = '0.00';
+    };
+
+    const va = document.getElementById('va');
+    document.getElementById('ra').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      simUniforms.uAttractStrength.value = v;
+      va.textContent = v.toFixed(2);
+    });
+    const vn = document.getElementById('vn');
+    document.getElementById('rn').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      simUniforms.uNoiseIntensity.value = v;
+      vn.textContent = v.toFixed(2);
+    });
+
+    /** 默认略提高生长，便于立刻看到树形吸引（g=0 时也有种子球 SDF） */
+    growth = 0.25;
+    rg.value = '0.25';
+    simUniforms.uGrowthProgress.value = growth;
+    vg.textContent = growth.toFixed(2);
+
+    } catch (e) {
+      showErr(String(e && e.message ? e.message : e) + '\n' + (e && e.stack ? e.stack : ''));
+    }
+  </script>
+</body>
+</html>

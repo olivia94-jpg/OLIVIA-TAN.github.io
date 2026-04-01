@@ -1,0 +1,14 @@
+{
+  "name": "design-tools",
+  "private": true,
+  "scripts": {
+    "dev": "npx --yes serve -l 5173 .",
+    "start": "npx --yes serve -l 5173 .",
+    "preview": "npx --yes serve -l 5173 ."
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.4",
+    "gsap": "^3.14.2",
+    "three": "^0.183.2"
+  }
+}

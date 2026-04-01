@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星空灵感 | 中英双语演示页</title>
+  <style>
+    :root {
+      --bg: #05070d;
+      --line: rgba(210, 222, 255, 0.18);
+      --line-strong: rgba(210, 222, 255, 0.42);
+      --text: #f3f6ff;
+      --text-soft: #aab4cc;
+      --accent: #c5d3ff;
+      --max: 1240px;
+    }
+    @font-face {
+      font-family: "Akzidenz Grotesk";
+      src: local("Akzidenz-Grotesk BQ"), local("Akzidenz Grotesk");
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Akzidenz Grotesk", "Microsoft YaHei", "微软雅黑", sans-serif;
+      background: radial-gradient(circle at 72% 20%, #13213f 0%, var(--bg) 46%, #020308 100%);
+      overflow-x: hidden;
+      letter-spacing: 0.01em;
+    }
+    .sky,
+    .twinkles,
+    .meteors {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    .sky {
+      z-index: -4;
+      background-image:
+        radial-gradient(2px 2px at 18% 30%, rgba(255,255,255,.55) 40%, transparent 42%),
+        radial-gradient(2px 2px at 72% 15%, rgba(174,203,255,.58) 40%, transparent 42%),
+        radial-gradient(1.5px 1.5px at 44% 84%, rgba(255,255,255,.45) 40%, transparent 42%);
+      animation: drift 60s linear infinite;
+    }
+    @keyframes drift { from { transform: translateY(0); } to { transform: translateY(-120px); } }
+    .twinkles { z-index: -3; }
+    .twinkle {
+      position: absolute;
+      width: 2px; height: 2px; border-radius: 50%;
+      background: rgba(224,235,255,.8);
+      box-shadow: 0 0 10px rgba(173,200,255,.45);
+      animation: twinkle var(--dur) ease-in-out infinite;
+      animation-delay: var(--delay);
+      opacity: .2;
+    }
+    @keyframes twinkle { 0%,100%{opacity:.14;transform:scale(.9)}50%{opacity:.95;transform:scale(1.7)} }
+    .meteors { z-index: -2; overflow: hidden; }
+    .meteor {
+      position: absolute;
+      width: 160px; height: 2px;
+      background: linear-gradient(90deg, rgba(255,255,255,.0), rgba(196,218,255,.85), rgba(255,255,255,.0));
+      transform: rotate(-28deg);
+      filter: blur(.2px);
+      animation: meteor var(--speed) linear infinite;
+      animation-delay: var(--delay);
+      opacity: 0;
+    }
+    @keyframes meteor {
+      0% { transform: translate(-20vw, -20vh) rotate(-28deg); opacity: 0; }
+      8% { opacity: .9; }
+      22% { opacity: 0; }
+      100% { transform: translate(130vw, 80vh) rotate(-28deg); opacity: 0; }
+    }
+    .lang-toggle {
+      position: fixed; top: 18px; right: 20px; z-index: 12;
+      border: 1px solid var(--line-strong);
+      color: var(--text); background: rgba(8, 12, 22, 0.76);
+      border-radius: 999px; padding: 8px 14px; cursor: pointer; font-size: 13px;
+    }
+    .demo-toggle {
+      position: fixed; top: 18px; right: 160px; z-index: 12;
+      border: 1px solid var(--line-strong);
+      color: var(--text); background: rgba(8, 12, 22, 0.76);
+      border-radius: 999px; padding: 8px 14px; cursor: pointer; font-size: 13px;
+    }
+    .demo-toggle.active {
+      border-color: rgba(239, 246, 255, 0.95);
+      background: rgba(42, 62, 108, 0.9);
+    }
+    .shell { width: min(var(--max), 94vw); margin: 0 auto; padding: clamp(88px, 6vh, 110px) 0 90px; }
+    section {
+      display: grid;
+      grid-template-columns: minmax(96px, 170px) minmax(0, 940px);
+      justify-content: center;
+      gap: clamp(16px, 2.2vw, 30px);
+      border-top: 1px solid var(--line); padding: 66px 0 54px;
+    }
+    section > div:last-child { min-width: 0; }
+    section:first-child { border-top: 0; padding-top: 0; }
+    .kicker {
+      color: var(--text-soft); font-size: 12px; text-transform: uppercase; letter-spacing: .14em; padding-top: 6px;
+    }
+    h1 { margin: 0 0 22px; font-size: clamp(36px, 5.1vw, 74px); line-height: 1.05; }
+    h2 { margin: 0 0 18px; font-size: clamp(22px, 2.5vw, 34px); line-height: 1.2; }
+    .lead, .body { margin: 0; max-width: 62em; line-height: 1.84; }
+    .lead { color: var(--accent); font-size: clamp(16px, 1.5vw, 21px); }
+    .body { color: var(--text-soft); font-size: clamp(15px, 1.05vw, 17px); }
+    .list { margin: 8px 0 0; padding: 0; list-style: none; }
+    .list li {
+      position: relative; padding-left: 18px; margin-bottom: 13px; color: var(--text-soft); line-height: 1.8;
+    }
+    .list li::before {
+      content: ""; position: absolute; left: 0; top: 12px; width: 8px; height: 1px; background: var(--line-strong);
+    }
+    .bi { display: grid; gap: 4px; }
+    .bi .cn { color: var(--text); }
+    .bi .en { color: #93a2c4; font-size: .92em; letter-spacing: .02em; }
+    body.en-first .bi .cn { order: 2; color: #96a6c8; }
+    body.en-first .bi .en { order: 1; color: var(--text); font-size: 1em; }
+    .gallery {
+      margin-top: 28px;
+      width: 100%;
+      max-width: 980px;
+      margin-inline: auto;
+      border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+      background: linear-gradient(160deg, rgba(10,14,26,.88), rgba(20,26,45,.58));
+    }
+    .gallery-head {
+      height: 36px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 12px; color: var(--text-soft); font-size: 12px;
+    }
+    .dots { display: flex; gap: 7px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.25); }
+    .slider-wrap { position: relative; overflow: hidden; }
+    .video-wrap {
+      position: relative;
+      padding: 14px;
+      background: rgba(4, 8, 16, 0.45);
+    }
+    .video-player {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      border: 1px solid rgba(210, 226, 255, 0.22);
+      background: #05070d;
+      display: block;
+    }
+    .slider-track {
+      display: flex; transition: transform .35s ease;
+      width: 100%;
+    }
+    .slide {
+      min-width: 100%; aspect-ratio: 16/9; padding: 22px;
+      display: grid; place-items: center;
+      border-right: 1px solid rgba(255,255,255,.04);
+      background:
+        radial-gradient(circle at 70% 30%, rgba(113,145,230,.24), transparent 42%),
+        radial-gradient(circle at 20% 75%, rgba(90,122,215,.16), transparent 44%);
+    }
+    .slide-box {
+      width: min(88%, 680px); height: min(72%, 340px);
+      border: 1px dashed rgba(212,226,255,.36); border-radius: 12px;
+      display: grid; place-items: center; text-align: center; padding: 16px;
+      color: var(--text-soft);
+    }
+    .slide-box .title { color: var(--text); margin-bottom: 8px; }
+    .slider-controls {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 10px;
+      pointer-events: none;
+    }
+    .nav-btn {
+      pointer-events: auto; width: 34px; height: 34px; border-radius: 50%;
+      border: 1px solid var(--line-strong); color: var(--text); background: rgba(6,10,18,.66); cursor: pointer;
+    }
+    .pager {
+      display: flex; justify-content: center; gap: 8px; padding: 11px 0 12px;
+      border-top: 1px solid var(--line);
+    }
+    .pager-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: rgba(180,195,230,.34); cursor: pointer;
+    }
+    .pager-dot.active { background: rgba(234,242,255,.95); }
+    .cta {
+      margin-top: 10px; display: inline-flex; align-items: center;
+      border: 1px solid var(--line-strong); border-radius: 999px;
+      color: var(--text); text-decoration: none; padding: 11px 18px;
+    }
+    .foot {
+      border-top: 1px solid var(--line); margin-top: 18px; padding-top: 18px;
+      color: #8793af; font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+    }
+    body.presentation-mode {
+      background: radial-gradient(circle at 72% 20%, #172b52 0%, #05070d 43%, #010207 100%);
+    }
+    body.presentation-mode .twinkles,
+    body.presentation-mode .meteors {
+      opacity: 0.45;
+    }
+    body.presentation-mode h1 {
+      font-size: clamp(42px, 5.8vw, 84px);
+      letter-spacing: 0.015em;
+    }
+    body.presentation-mode h2 { font-size: clamp(26px, 2.9vw, 40px); }
+    body.presentation-mode .lead { font-size: clamp(18px, 1.75vw, 24px); color: #dbe7ff; }
+    body.presentation-mode .body,
+    body.presentation-mode .list li { font-size: clamp(16px, 1.15vw, 19px); line-height: 1.9; }
+    body.presentation-mode .bi .en { color: #7f8fb3; }
+    body.presentation-mode .kicker,
+    body.presentation-mode .foot { opacity: 0.6; }
+    body.presentation-mode .gallery {
+      border-color: rgba(224, 236, 255, 0.4);
+      box-shadow: 0 10px 40px rgba(41, 74, 149, 0.2);
+    }
+    @media (max-width: 1080px) {
+      section { grid-template-columns: 128px minmax(0, 1fr); }
+    }
+    @media (min-width: 1600px) {
+      .shell { width: min(1280px, 90vw); }
+      section {
+        grid-template-columns: 170px minmax(0, 1040px);
+        gap: 34px;
+        padding: 78px 0 62px;
+      }
+      .gallery { max-width: 1040px; }
+      .slide { padding: 30px; }
+      .slide-box { width: min(86%, 760px); height: min(74%, 380px); }
+      .lang-toggle { top: 24px; right: 28px; }
+      .demo-toggle { top: 24px; right: 176px; }
+    }
+    @media (min-width: 2200px) {
+      .shell { width: min(1320px, 86vw); }
+      h1 { font-size: 72px; }
+      h2 { font-size: 34px; }
+      .lead { font-size: 21px; }
+      .body, .list li { font-size: 17px; }
+      .gallery { max-width: 1100px; }
+    }
+    @media (max-width: 860px) {
+      section { grid-template-columns: 1fr; gap: 14px; padding: 50px 0 42px; }
+      .shell { padding-top: 88px; }
+      .gallery { max-width: 100%; }
+      .demo-toggle { right: 142px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sky"></div>
+  <div class="twinkles" id="twinkles"></div>
+  <div class="meteors" id="meteors"></div>
+  <button class="demo-toggle" id="demoBtn">演示模式</button>
+  <button class="lang-toggle" id="langBtn">English First</button>
+
+  <main class="shell">
+    <section>
+      <div class="kicker">01 Hero</div>
+      <div>
+        <h1 class="bi">
+          <span class="cn">你的灵感，不该消失在千篇一律的聊天框里。</span>
+          <span class="en">Your inspiration should not disappear in generic chat windows.</span>
+        </h1>
+        <p class="lead bi">
+          <span class="cn">星空灵感 —— 用语音与 AI 在一片深邃星空中对话，把每一个设计灵感，化作永恒的星座。</span>
+          <span class="en">Starfield Inspiration - Talk to AI with your voice in a deep cosmic sky, and turn every design spark into an eternal constellation.</span>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <div class="kicker">02 Problem</div>
+      <div>
+        <h2 class="bi">
+          <span class="cn">作为设计师，你一定深有体会：</span>
+          <span class="en">As a designer, this probably feels familiar:</span>
+        </h2>
+        <ul class="list">
+          <li class="bi"><span class="cn">突然闪现的灵感，转瞬即逝，来不及记录就消失；</span><span class="en">Ideas flash into your mind and vanish before you can capture them.</span></li>
+          <li class="bi"><span class="cn">和 AI 聊设计方案时，界面冰冷单调，缺少反馈与仪式感；</span><span class="en">When discussing concepts with AI, the interface feels cold, flat, and without ritual.</span></li>
+          <li class="bi"><span class="cn">当前大多数 AIGC 工具界面高度雷同，千篇一律的聊天窗口，让原本应该充满创造力的过程变得枯燥乏味；</span><span class="en">Most AIGC tools look almost identical, making a creative process feel repetitive and dull.</span></li>
+          <li class="bi"><span class="cn">想深入梳理一个模糊想法，却只能在单调的对话框里机械输入，缺乏沉浸感和情感陪伴；</span><span class="en">Refining a vague thought becomes mechanical typing in a plain box, with little immersion or emotional support.</span></li>
+          <li class="bi"><span class="cn">过去积累的灵感散落在不同聊天记录中，回顾时既费力又毫无美感。</span><span class="en">Past inspirations are scattered across chat logs, hard to review and lacking visual continuity.</span></li>
+        </ul>
+        <p class="body bi">
+          <span class="cn">设计师需要的不只是一个“会回答问题”的 AI，而是一个能真正陪伴思考、让人愿意沉浸其中的创作空间。</span>
+          <span class="en">Designers need more than an AI that simply answers; they need a creative space that truly accompanies thinking.</span>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <div class="kicker">03 Solution</div>
+      <div>
+        <h2 class="bi">
+          <span class="cn">星空灵感正是为此而生。</span>
+          <span class="en">Starfield Inspiration is built exactly for this.</span>
+        </h2>
+        <ul class="list">
+          <li class="bi"><span class="cn">语音输入：灵感来临时，只需点击语音，说出来即可。无需打字，打断思考流。</span><span class="en">Voice input: when inspiration arrives, tap and speak - no typing, no interruption.</span></li>
+          <li class="bi"><span class="cn">温和引导：AI 以专业且富有同理心的提问，一步步帮你把模糊的灵感梳理成清晰的设计方案。</span><span class="en">Gentle guidance: AI uses professional and empathetic prompts to shape fuzzy ideas into clear design directions.</span></li>
+          <li class="bi"><span class="cn">沉浸式视觉交互：每一次对话，都会在星空中优雅地增添一条星座般的连线。结束对话时，一个明亮的发光球体从屏幕中央由大至小投掷到星空中心，化作一颗永恒的「灵感星」。</span><span class="en">Immersive visual interaction: each exchange draws elegant constellation-like links, and an ending luminous orb is cast into the center as a permanent inspiration star.</span></li>
+          <li class="bi"><span class="cn">灵感库：所有历史对话自动生成结构化卡片（标题 + 时间 + 核心总结 + 行动计划），通过检索框即可快速查找，并让对应的星星与连线在星空中高亮显示。</span><span class="en">Inspiration library: every session becomes a structured card (title + time + summary + action plan), searchable with matching stars and links highlighted.</span></li>
+        </ul>
+        <p class="body bi">
+          <span class="cn">通过星空元素的动态互动，我们大幅提升了设计师在做方案过程中的舒适度与愉悦感。在这里，记录灵感不再是任务，而是一场诗意且治愈的沉浸式体验。</span>
+          <span class="en">Dynamic starfield interactions make the design process calmer and more joyful - capturing ideas becomes a poetic and healing experience.</span>
+        </p>
+
+        <div class="gallery">
+          <div class="gallery-head">
+            <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <div class="bi"><span class="cn">演示视频区</span><span class="en">Product demo video area</span></div>
+          </div>
+          <div class="video-wrap">
+            <video
+              id="pitchVideo"
+              class="video-player"
+              controls
+              autoplay
+              muted
+              playsinline
+              preload="metadata"
+            >
+              <source src="./3月31日.mp4" type="video/mp4" />
+              你的浏览器不支持 video 标签，请升级浏览器后查看。
+            </video>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="kicker">04 Advantage</div>
+      <div>
+        <h2 class="bi"><span class="cn">专为设计师打造的沉浸式 AIGC 工具：</span><span class="en">An immersive AIGC tool made for designers:</span></h2>
+        <ul class="list">
+          <li class="bi"><span class="cn">告别雷同界面：不再是千篇一律的白色/暗黑聊天框，而是一幅不断生长的梦幻星空。</span><span class="en">Break away from look-alike interfaces and enter a living dreamlike sky.</span></li>
+          <li class="bi"><span class="cn">真正的沉浸感：语音 + 星空可视化 + 优雅动画，让你愿意长时间停留并深入思考。</span><span class="en">Real immersion through voice, starfield visualization, and elegant motion.</span></li>
+          <li class="bi"><span class="cn">灵感永存：每一次对话都变成星空中的一部分，历史灵感以最美的方式被保留和连接。</span><span class="en">Every conversation remains in your sky, preserved and connected beautifully.</span></li>
+          <li class="bi"><span class="cn">舒适的创作仪式：从语音输入，到连线生成，再到发光球体投掷与卡片生成，整个过程充满仪式感和视觉享受。</span><span class="en">From voice capture to constellation links and card generation, the flow feels ceremonial and delightful.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <div class="kicker">05 CTA</div>
+      <div>
+        <h2 class="bi"><span class="cn">把你的设计灵感，交给这片属于自己的星空。</span><span class="en">Give your design inspiration a sky of its own.</span></h2>
+        <p class="lead bi"><span class="cn">一键开启语音对话，让每一个闪念，都在星河中闪耀。</span><span class="en">Start a voice session in one tap, and let every spark shine in the galaxy.</span></p>
+        <a href="#" class="cta bi"><span class="cn">开始语音对话</span><span class="en">Start Voice Session</span></a>
+        <div class="foot">Starfield Inspiration · Bilingual Pitch</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var btn = document.getElementById("langBtn");
+      var demoBtn = document.getElementById("demoBtn");
+      var pref = localStorage.getItem("pitch-pref") || "zh-first";
+      var demoMode = localStorage.getItem("pitch-demo-mode") || "off";
+      function applyPref(next) {
+        if (next === "en-first") {
+          document.body.classList.add("en-first");
+          btn.textContent = "中文优先";
+        } else {
+          document.body.classList.remove("en-first");
+          btn.textContent = "English First";
+        }
+      }
+      function applyDemoMode(next) {
+        var on = next === "on";
+        document.body.classList.toggle("presentation-mode", on);
+        demoBtn.classList.toggle("active", on);
+        demoBtn.textContent = on ? "退出演示" : "演示模式";
+      }
+      applyPref(pref);
+      applyDemoMode(demoMode);
+      btn.addEventListener("click", function () {
+        pref = pref === "zh-first" ? "en-first" : "zh-first";
+        localStorage.setItem("pitch-pref", pref);
+        applyPref(pref);
+      });
+      demoBtn.addEventListener("click", function () {
+        demoMode = demoMode === "on" ? "off" : "on";
+        localStorage.setItem("pitch-demo-mode", demoMode);
+        applyDemoMode(demoMode);
+      });
+
+      var twinkles = document.getElementById("twinkles");
+      for (var i = 0; i < 80; i++) {
+        var dot = document.createElement("span");
+        dot.className = "twinkle";
+        dot.style.left = Math.random() * 100 + "vw";
+        dot.style.top = Math.random() * 100 + "vh";
+        dot.style.setProperty("--dur", (2.2 + Math.random() * 3.8) + "s");
+        dot.style.setProperty("--delay", (Math.random() * 6) + "s");
+        twinkles.appendChild(dot);
+      }
+
+      var meteors = document.getElementById("meteors");
+      for (var m = 0; m < 6; m++) {
+        var meteor = document.createElement("span");
+        meteor.className = "meteor";
+        meteor.style.left = (-20 + m * 14) + "vw";
+        meteor.style.top = (m * 10) + "vh";
+        meteor.style.setProperty("--speed", (9 + Math.random() * 8) + "s");
+        meteor.style.setProperty("--delay", (Math.random() * 10) + "s");
+        meteors.appendChild(meteor);
+      }
+
+      var pitchVideo = document.getElementById("pitchVideo");
+      if (pitchVideo) {
+        pitchVideo.addEventListener("loadedmetadata", function () {
+          pitchVideo.play().catch(function () {});
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

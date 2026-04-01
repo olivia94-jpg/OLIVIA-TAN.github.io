@@ -1,0 +1,2411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星空灵感 · Starfield Inspiration</title>
+  <style>
+    :root {
+      --bg-solid: #08081a;
+      --bg-panel: #0e0e24;
+      --bg-input: #141430;
+      --border: #2a2850;
+      --border-glow: #6080d0;
+      --text: #d0d8f0;
+      --text-dim: #7880a8;
+      --accent: #6898e8;
+      --accent-soft: rgba(104,152,232,0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000005; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--text); }
+    #canvas-wrap { position: fixed; inset: 0; z-index: 0; }
+    #main-canvas { display: block; width: 100%; height: 100%; }
+
+    /* ===== 开屏引导 ===== */
+    #splash-text {
+      position: fixed; top: 42%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.25rem; color: #90b8f0;
+      text-shadow: 0 0 28px rgba(100,140,220,0.25), 0 2px 10px rgba(0,0,0,0.6);
+      opacity: 0; animation: splashIn 2s ease-out 1.8s forwards;
+      z-index: 14; pointer-events: none;
+      letter-spacing: 0.12em; text-align: center; line-height: 1.9;
+    }
+    #splash-text.hidden { animation: splashOut 0.8s ease-in forwards !important; }
+    @keyframes splashIn { from { opacity:0; transform:translate(-50%,-50%) translateY(14px); } to { opacity:1; transform:translate(-50%,-50%) translateY(0); } }
+    @keyframes splashOut { to { opacity:0; transform:translate(-50%,-50%) translateY(-18px); } }
+
+    /* ===== 沉浸式消息流 ===== */
+    #msg-stream {
+      position: fixed; bottom: 105px; left: 50%; transform: translateX(-50%);
+      width: min(88vw, 560px); max-height: 46vh; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: flex-end; gap: 0.55rem;
+      pointer-events: none; z-index: 12; padding: 0 0.5rem;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 20%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%);
+    }
+    .imm-msg { padding: 0.2rem 0; font-size: 15px; line-height: 1.65; text-shadow: 0 1px 10px rgba(0,0,0,0.65); animation: msgIn 0.55s ease-out; transition: opacity 2.5s ease; max-width: 88%; }
+    .imm-msg.user-msg { color: #b8d4ff; align-self: flex-end; text-align: right; }
+    .imm-msg.ai-msg   { color: #c8d8ff; align-self: flex-start; text-align: left; }
+    .imm-msg .msg-role { font-size: 10px; opacity: 0.4; margin-bottom: 2px; }
+    .imm-msg.fading    { opacity: 0.08; }
+    @keyframes msgIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ===== 灵感星详情弹窗 ===== */
+    #fruit-detail {
+      display: none; position: fixed;
+      width: min(86vw, 320px); padding: 1rem 1.1rem; border-radius: 14px;
+      background: rgba(14,14,36,0.96); border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      z-index: 46; font-size: 13px; line-height: 1.55; color: var(--text);
+      pointer-events: auto; backdrop-filter: blur(14px);
+    }
+    #fruit-detail.visible { display: block; }
+    #fruit-detail .fd-user { color: #a0c8ff; margin-bottom: 0.5rem; }
+    #fruit-detail .fd-ai   { color: #b8c8f0; }
+    #fruit-detail .fd-label { font-size: 10px; opacity: 0.42; margin-bottom: 2px; }
+
+    /* ===== 底部输入 ===== */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 15;
+      display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+      padding: 0.55rem 1rem 0.9rem;
+      background: linear-gradient(to top, rgba(8,8,26,0.9) 42%, transparent);
+      pointer-events: auto;
+    }
+    .input-row { display: flex; width: min(90vw, 520px); gap: 0.4rem; align-items: center; }
+    #text-input {
+      flex: 1; height: 42px; padding: 0 1rem; border-radius: 21px;
+      border: 1px solid rgba(42,40,80,0.55);
+      background: rgba(20,20,48,0.6); color: var(--text); font-size: 14px;
+      outline: none; transition: border-color 0.3s, box-shadow 0.3s;
+      backdrop-filter: blur(8px);
+    }
+    #text-input::placeholder { color: var(--text-dim); }
+    #text-input:focus { border-color: var(--border-glow); box-shadow: 0 0 14px rgba(80,120,200,0.15); }
+    .icon-btn {
+      width: 42px; height: 42px; border-radius: 50%;
+      border: 1px solid rgba(42,40,80,0.55);
+      background: rgba(20,20,48,0.45); color: var(--text);
+      cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.25s, box-shadow 0.25s;
+    }
+    .icon-btn:hover { background: rgba(30,30,68,0.65); border-color: var(--border-glow); box-shadow: 0 0 10px rgba(80,120,200,0.12); }
+    .icon-btn.primary { background: rgba(30,40,80,0.65); border-color: var(--border-glow); }
+    .icon-btn.recording { border-color: #e06050; box-shadow: 0 0 16px rgba(224,96,80,0.3); animation: pulse-rec 1.1s ease-in-out infinite; }
+    @keyframes pulse-rec { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+    .action-row { display: flex; gap: 0.6rem; align-items: center; }
+    .subtle-btn {
+      background: none; border: none; color: var(--text-dim); font-size: 12px;
+      cursor: pointer; padding: 0.3rem 0.65rem; border-radius: 8px;
+      transition: color 0.2s, background 0.2s; white-space: nowrap;
+    }
+    .subtle-btn:hover { color: var(--text); background: rgba(104,152,232,0.1); }
+
+    /* ===== 搜索栏 ===== */
+    #search-wrap {
+      position: fixed; top: 0.8rem; left: 50%; transform: translateX(-50%);
+      z-index: 16; display: flex; align-items: center; gap: 0.4rem;
+    }
+    #search-stars {
+      width: 200px; height: 32px; padding: 0 0.8rem; border-radius: 16px;
+      border: 1px solid rgba(42,40,80,0.5);
+      background: rgba(14,14,36,0.7); color: var(--text); font-size: 12px;
+      outline: none; backdrop-filter: blur(8px);
+      transition: border-color 0.3s, width 0.3s;
+    }
+    #search-stars::placeholder { color: var(--text-dim); }
+    #search-stars:focus { border-color: var(--border-glow); width: 260px; }
+
+    /* ===== 设置面板 ===== */
+    .panel-toggle {
+      position: fixed; top: 0.8rem; right: 0.8rem; z-index: 16;
+      width: 34px; height: 34px; border-radius: 10px;
+      border: 1px solid rgba(42,40,80,0.45);
+      background: rgba(14,14,36,0.55); color: var(--text-dim);
+      cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: auto; transition: background 0.2s, border-color 0.25s;
+      backdrop-filter: blur(8px);
+    }
+    .panel-toggle:hover { background: rgba(24,24,56,0.75); border-color: var(--border-glow); }
+    .panel {
+      position: fixed; top: 0.8rem; right: 3.2rem; width: 260px; max-height: 82vh; overflow-y: auto;
+      padding: 1rem; border-radius: 16px; pointer-events: auto; z-index: 15;
+      background: rgba(14,14,36,0.97); border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.55); font-size: 12px;
+      backdrop-filter: blur(14px);
+      transform-origin: top right; transition: opacity 0.3s, transform 0.3s;
+    }
+    .panel.hidden { opacity: 0; transform: scale(0.92); pointer-events: none; }
+    .panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.55rem; }
+    .panel label { display: flex; justify-content: space-between; align-items: center; margin: 0.45rem 0; gap: 0.5rem; color: var(--text-dim); }
+    .panel label span:first-child { min-width: 70px; }
+    .panel input[type="range"] { flex: 1; accent-color: var(--accent); height: 4px; }
+    .panel .val { min-width: 32px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+    .panel input[type="password"] {
+      width: 100%; height: 32px; padding: 0 0.6rem; margin-top: 0.3rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg-input); color: var(--text); font-size: 12px; outline: none;
+    }
+    .panel input[type="password"]:focus { border-color: var(--border-glow); }
+    .sep { border: none; border-top: 1px solid var(--border); margin: 0.75rem 0; }
+    .panel .hint { color: var(--text-dim); line-height: 1.45; margin-bottom: 0.5rem; }
+    .shape-btns { display: flex; gap: 0.35rem; margin-bottom: 0.6rem; }
+    .shape-btn {
+      flex: 1; height: 30px; border-radius: 8px; cursor: pointer; font-size: 11px;
+      border: 1px solid var(--border); background: var(--bg-input); color: var(--text-dim);
+      transition: all 0.2s;
+    }
+    .shape-btn:hover { border-color: var(--border-glow); color: var(--text); }
+    .shape-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .panel input[type="color"] {
+      width: 42px; height: 26px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg-input); cursor: pointer; padding: 1px;
+    }
+    #status-line {
+      margin-top: 0.5rem; padding: 0.45rem 0.6rem; border-radius: 8px;
+      background: var(--accent-soft); color: var(--text); font-size: 11px; line-height: 1.45;
+    }
+
+    /* ===== 灵感卡片 ===== */
+    #card-dock {
+      position: fixed; inset: 0; z-index: 48;
+      display: none; align-items: center; justify-content: center;
+      padding: 1rem; pointer-events: none;
+      background: rgba(0,0,10,0.5);
+    }
+    #card-dock.card-visible { display: flex; pointer-events: auto; }
+    .inspiration-card {
+      width: min(92vw, 400px); max-height: min(78vh, 500px); overflow-y: auto;
+      padding: 1.4rem 1.5rem; border-radius: 20px; pointer-events: auto;
+      background: rgba(14,14,36,0.97); border: 1px solid var(--border);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.65), 0 0 50px rgba(80,120,200,0.06);
+      color: var(--text); backdrop-filter: blur(16px);
+    }
+    .inspiration-card .card-title { font-size: 1.05rem; color: var(--accent); margin-bottom: 0.2rem; }
+    .inspiration-card time { font-size: 11px; color: var(--text-dim); }
+    .inspiration-card h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 0.6rem 0 0.3rem; }
+    .inspiration-card ul, .inspiration-card ol { margin-left: 1.1rem; font-size: 12.5px; line-height: 1.55; }
+    .inspiration-card .card-actions-row { display: flex; gap: 0.45rem; margin-top: 0.85rem; flex-wrap: wrap; }
+    .inspiration-card .card-actions-row button {
+      flex: 1; min-width: 90px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 12px;
+      border: 1px solid var(--border); transition: background 0.2s;
+    }
+    .inspiration-card .card-dismiss { background: #1a1838; color: var(--text-dim); }
+    .inspiration-card .card-dismiss:hover { background: #2a2850; color: var(--text); }
+    .inspiration-card .card-save { background: var(--accent-soft); color: var(--accent); }
+    .inspiration-card .card-save:hover { background: rgba(104,152,232,0.22); }
+    .inspiration-card .card-newchat { background: rgba(100,180,255,0.1); color: #a0c8ff; }
+    .inspiration-card .card-newchat:hover { background: rgba(100,180,255,0.18); }
+
+    /* ===== 保存提示 Toast ===== */
+    .save-toast {
+      position: fixed; bottom: 120px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      padding: 0.7rem 1.4rem; border-radius: 14px;
+      background: rgba(14,14,40,0.88); border: 1px solid rgba(80,120,200,0.25);
+      color: #b0c8f0; font-size: 13px; line-height: 1.5;
+      text-align: center; white-space: nowrap;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 8px 32px rgba(0,0,20,0.5), 0 0 20px rgba(80,120,200,0.06);
+      z-index: 55; pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .save-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .save-toast .toast-icon { font-size: 15px; margin-right: 0.4rem; }
+    .save-toast .toast-hint { color: var(--accent); font-weight: 500; }
+
+    .intro-overlay {
+      position: fixed; inset: 0; z-index: 50; pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(0,0,5,0) 0%, rgba(0,0,5,0.92) 100%);
+      opacity: 1; transition: opacity 3s ease-out;
+    }
+    .intro-overlay.fade-out { opacity: 0; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="canvas-wrap"><canvas id="main-canvas"></canvas></div>
+  <div class="intro-overlay" id="intro-overlay"></div>
+
+  <div id="splash-text">在星空中记录你的灵感<br/>每一次对话，都是一颗新星</div>
+
+  <div id="msg-stream"></div>
+
+  <div id="fruit-detail">
+    <div class="fd-user"><div class="fd-label">你的想法</div><div class="fd-text"></div></div>
+    <div class="fd-ai"><div class="fd-label">AI 回应</div><div class="fd-text"></div></div>
+  </div>
+
+  <div id="search-wrap">
+    <input type="text" id="search-stars" placeholder="🔍 搜索灵感星…" autocomplete="off" />
+  </div>
+
+  <button id="btn-fullscreen" class="panel-toggle" style="right:8.4rem" title="全屏">⛶</button>
+  <button id="btn-lang-toggle" class="panel-toggle" style="right:5.9rem" title="切换语言">EN</button>
+  <button id="btn-new-chat" class="panel-toggle" style="right:3.35rem" title="新对话">✦</button>
+  <button id="btn-panel-toggle" class="panel-toggle" title="设置">⚙</button>
+  <aside class="panel hidden" id="control-panel">
+    <h3>DeepSeek AI</h3>
+    <p class="hint">填入 API Key 即可接入 DeepSeek 智能对话。</p>
+    <input type="password" id="ds-key" placeholder="sk-xxxxxxxx" />
+    <hr class="sep" />
+    <h3>粒子形态</h3>
+    <div class="shape-btns">
+      <button class="shape-btn active" data-shape="nebula">星云</button>
+      <button class="shape-btn" data-shape="heart">爱心</button>
+      <button class="shape-btn" data-shape="saturn">土星</button>
+      <button class="shape-btn" data-shape="firework">烟花</button>
+    </div>
+    <label><span>色彩 A</span><input type="color" id="cl-a" value="#2266ff" /></label>
+    <label><span>色彩 B</span><input type="color" id="cl-b" value="#9944dd" /></label>
+    <label><span>粒子大小</span><input type="range" id="sl-point" min="0.3" max="5" step="0.05" value="1.5" /><span class="val" id="lb-point">1.5</span></label>
+    <label><span>扩散度</span><input type="range" id="sl-spread" min="0.3" max="3.0" step="0.05" value="1.0" /><span class="val" id="lb-spread">1.0</span></label>
+    <label><span>鼠标力度</span><input type="range" id="sl-mouse-force" min="0.5" max="6" step="0.1" value="2.8" /><span class="val" id="lb-mouse-force">2.8</span></label>
+    <hr class="sep" />
+    <h3>星座连线</h3>
+    <label><span>连线透明度</span><input type="range" id="sl-line-op" min="0.1" max="1.5" step="0.02" value="0.65" /><span class="val" id="lb-line-op">0.65</span></label>
+    <label><span>连线亮度</span><input type="range" id="sl-line-bright" min="0.4" max="2.5" step="0.02" value="1.20" /><span class="val" id="lb-line-bright">1.20</span></label>
+    <hr class="sep" />
+    <h3>后处理</h3>
+    <label><span>Bloom</span><input type="range" id="sl-bloom" min="0" max="2.5" step="0.02" value="1.30" /><span class="val" id="lb-bloom">1.30</span></label>
+    <label><span>残影</span><input type="range" id="sl-after" min="0.0" max="0.95" step="0.005" value="0.12" /><span class="val" id="lb-after">0.12</span></label>
+    <div id="status-line"></div>
+  </aside>
+
+  <div class="bottom-bar">
+    <div class="input-row">
+      <input type="text" id="text-input" placeholder="说说你的想法…" autocomplete="off" />
+      <button type="button" class="icon-btn" id="btn-voice" title="语音输入">🎤</button>
+      <button type="button" class="icon-btn primary" id="btn-send" title="发送">➤</button>
+    </div>
+    <div class="action-row">
+      <button type="button" class="subtle-btn" id="btn-end">✧ 结束对话</button>
+    </div>
+  </div>
+
+  <div id="card-dock"></div>
+  <div class="save-toast" id="save-toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script type="module">
+// === CDN imports ===
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+const gsap = window.gsap;
+
+// === tree.js ===
+function getStarAnchorPosition(seed, target = new THREE.Vector3()) {
+  const s1 = Math.sin(seed * 127.1) * 43758.5453;
+  const t1 = s1 - Math.floor(s1);
+  const s2 = Math.sin(seed * 19.19 + 3.7) * 0.5 + 0.5;
+  const a = t1 * Math.PI * 2;
+  const b = Math.acos(2 * s2 - 1);
+  const r = 2.2 + Math.abs(Math.sin(seed * 0.73)) * 2.8;
+  target.set(Math.sin(b) * Math.cos(a) * r, Math.sin(b) * Math.sin(a) * r * 0.7, Math.cos(b) * r);
+  return target;
+}
+const getFruitAnchorPosition = getStarAnchorPosition;
+function evaluateGrowth() { return { canopyH: 3, canopyR: 3, gBase: 1, gExtra: 0 }; }
+
+function initTree(scene, sharedUniforms) {
+  const group = new THREE.Group();
+  scene.add(group);
+  const pointer = new THREE.Vector2(0, 0);
+
+  const N = 2500;
+  const pos = new Float32Array(N * 3);
+  const sd = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 30 + Math.random() * 60;
+    pos[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
+    pos[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r;
+    pos[i * 3 + 2] = Math.cos(phi) * r;
+    sd[i] = Math.random();
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(sd, 1));
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: sharedUniforms.uTime, uPointer: { value: pointer } },
+    vertexShader: `
+      uniform float uTime;
+      uniform vec2 uPointer;
+      attribute float aSeed;
+      varying float vAlpha;
+      void main(){
+        vec3 p = position;
+        p.x += uPointer.x * 0.8;
+        p.y += uPointer.y * 0.5;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = clamp(0.3 + aSeed * 0.8, 0.2, 1.3);
+        float flicker = 0.5 + 0.5 * sin(uTime * (0.05 + aSeed * 0.1) + aSeed * 60.0);
+        vAlpha = flicker * (0.08 + aSeed * 0.25);
+      }
+    `,
+    fragmentShader: `
+      varying float vAlpha;
+      void main(){
+        float d = length(gl_PointCoord - 0.5);
+        if(d > 0.5) discard;
+        gl_FragColor = vec4(0.65, 0.70, 0.85, vAlpha * exp(-d * 12.0));
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  pts.renderOrder = -10;
+  group.add(pts);
+
+  return {
+    group,
+    points: null,
+    material: null,
+    setGrowthProgress() {},
+    setPointer(nx = 0, ny = 0) { pointer.set(nx, ny); },
+    getCanopyWorldPosition(target = new THREE.Vector3()) { return target.set(0, 0, 0); },
+    dispose() { scene.remove(group); mat.dispose(); geo.dispose(); },
+  };
+}
+
+// === particles.js ===
+/**
+ * particles.js — GPGPU 星空粒子 + 星座连线 + 灵感星系统
+ * 保留 Ping-pong FBO 管线，力场改为宇宙漂移（Curl Noise + 球壳收容）
+ */
+
+const PARTICLE_SIM_TEXTURE_SIZE = 256;
+
+/* ── Phase ── */
+let phaseId = 0;
+function setParticlePhase(name) {
+  phaseId = { idle: 0, burst: 1, attract: 2 }[name] ?? 0;
+}
+function getPhaseId() {
+  return phaseId;
+}
+
+/* ══════════════════════════════════════════════════════
+   GLSL: 4D Simplex Noise + Curl Noise
+   ══════════════════════════════════════════════════════ */
+const SIMPLEX4D = /* glsl */ `
+vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}
+float mod289(float x){return x-floor(x*(1./289.))*289.;}
+vec4 permute(vec4 x){return mod289((x*34.+10.)*x);}
+float permute(float x){return mod289((x*34.+10.)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+float taylorInvSqrt(float r){return 1.79284291400159-0.85373472095314*r;}
+vec4 grad4(float j,vec4 ip){
+  vec4 p;p.xyz=floor(fract(vec3(j)*ip.xyz)*7.)*ip.z-1.;
+  p.w=1.5-dot(abs(p.xyz),vec3(1.));
+  vec4 s=vec4(lessThan(p,vec4(0.)));
+  p.xyz=p.xyz+(s.xyz*2.-1.)*s.www;return p;}
+float snoise4(vec4 v){
+  const vec4 C=vec4(0.138196601125011,0.276393202250021,0.414589803375032,-0.447213595499958);
+  vec4 i=floor(v+dot(v,vec4(0.309016994374947451)));
+  vec4 x0=v-i+dot(i,C.xxxx);vec4 i0;
+  vec3 isX=step(x0.yzw,x0.xxx);vec3 isYZ=step(x0.zww,x0.yyz);
+  i0.x=isX.x+isX.y+isX.z;i0.yzw=1.-isX;
+  i0.y+=isYZ.x+isYZ.y;i0.zw+=1.-isYZ.xy;i0.z+=isYZ.z;i0.w+=1.-isYZ.z;
+  vec4 i3=clamp(i0,0.,1.);vec4 i2=clamp(i0-1.,0.,1.);vec4 i1=clamp(i0-2.,0.,1.);
+  vec4 x1=x0-i1+C.xxxx;vec4 x2=x0-i2+C.yyyy;vec4 x3=x0-i3+C.zzzz;vec4 x4=x0+C.wwww;
+  i=mod289(i);
+  float j0=permute(permute(permute(permute(i.w)+i.z)+i.y)+i.x);
+  vec4 j1=permute(permute(permute(permute(
+    i.w+vec4(i1.w,i2.w,i3.w,1.))+i.z+vec4(i1.z,i2.z,i3.z,1.))+i.y+vec4(i1.y,i2.y,i3.y,1.))+i.x+vec4(i1.x,i2.x,i3.x,1.));
+  vec4 ip2=vec4(1./294.,1./49.,1./7.,0.);
+  vec4 p0=grad4(j0,ip2);vec4 p1=grad4(j1.x,ip2);vec4 p2=grad4(j1.y,ip2);vec4 p3=grad4(j1.z,ip2);vec4 p4=grad4(j1.w,ip2);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;p4*=taylorInvSqrt(dot(p4,p4));
+  vec3 m0=max(0.6-vec3(dot(x0,x0),dot(x1,x1),dot(x2,x2)),0.);
+  vec2 m1=max(0.6-vec2(dot(x3,x3),dot(x4,x4)),0.);
+  m0=m0*m0;m1=m1*m1;
+  return 49.*(dot(m0*m0,vec3(dot(p0,x0),dot(p1,x1),dot(p2,x2)))+dot(m1*m1,vec2(dot(p3,x3),dot(p4,x4))));
+}
+`;
+
+const COSMIC_FIELD = /* glsl */ `
+${SIMPLEX4D}
+
+float fbm4(vec4 v,int oct,float lac,float gain){
+  float s=0.0,a=0.5;
+  for(int i=0;i<6;i++){if(i>=oct)break;s+=a*snoise4(v);v*=lac;a*=gain;}
+  return s;
+}
+
+vec3 curlNoise(vec3 p,float t,float sc){
+  float e=0.003;
+  vec4 b=vec4(p*sc,t);
+  float dx=fbm4(b+vec4(e,0,0,0),3,2.0,0.5)-fbm4(b-vec4(e,0,0,0),3,2.0,0.5);
+  float dy=fbm4(b+vec4(0,e,0,0),3,2.0,0.5)-fbm4(b-vec4(0,e,0,0),3,2.0,0.5);
+  float dz=fbm4(b+vec4(0,0,e,0),3,2.0,0.5)-fbm4(b-vec4(0,0,e,0),3,2.0,0.5);
+  return vec3(dy-dz,dz-dx,dx-dy)/(2.0*e);
+}
+
+vec3 computeSaturnField(
+  vec3 pos,vec3 target,float t,float dt,
+  float noiseInt,float noiseSc,float curlStr,float curlBoost,
+  float attractStr,float attractBoost,float damping,
+  int phase,float typingPulse,float introBurst,
+  vec3 mouseWorld,float mouseActive,float clickPulse
+){
+  vec3 F=vec3(0.0);
+
+  vec3 toTarget=target-pos;
+  float springK=attractStr*attractBoost;
+  F+=toTarget*springK*0.55;
+
+  float nG=noiseInt*noiseSc*max(0.05,curlStr)*curlBoost;
+  F+=curlNoise(pos,t*0.04,0.25)*nG*0.07;
+  F+=vec3(
+    snoise4(vec4(pos*0.35,t*0.08)),
+    snoise4(vec4(pos*0.35+vec3(5.0,3.0,1.0),t*0.07)),
+    snoise4(vec4(pos*0.35+vec3(11.0,7.0,2.0),t*0.09))
+  )*noiseInt*noiseSc*0.012;
+
+  if(mouseActive>0.01){
+    vec3 toMouse=pos-mouseWorld;
+    float mDist=length(toMouse);
+    float repelR=2.8;
+    if(mDist<repelR&&mDist>0.01){
+      float s=(1.0-mDist/repelR);
+      s=s*s*4.5;
+      F+=normalize(toMouse)*s*mouseActive;
+    }
+  }
+
+  if(clickPulse>0.01){
+    vec3 outward=normalize(pos+vec3(1e-5));
+    F+=outward*clickPulse*2.8;
+    F+=curlNoise(pos*0.5,t*0.5,0.4)*clickPulse*2.0;
+  }
+
+  if(phase==1){
+    F+=curlNoise(pos*0.55,t*0.45,0.65)*nG*0.5;
+    F+=normalize(pos+vec3(1e-5))*nG*0.2;
+  }
+  if(phase==2){
+    F+=toTarget*springK*0.35;
+  }
+
+  if(typingPulse>0.01){
+    F+=curlNoise(pos*1.2,t*0.8,0.5)*typingPulse*0.08;
+  }
+  if(introBurst>0.01){
+    F+=normalize(pos+vec3(1e-5))*introBurst*0.25;
+    F+=curlNoise(pos*0.4,t*0.2,0.35)*introBurst*0.4;
+  }
+
+  return F;
+}
+`;
+
+/* ── Velocity step uniforms ── */
+const VEL_UNIFORMS = /* glsl */ `
+uniform float uDelta;
+uniform float uTime;
+uniform float uDamping;
+uniform float uNoiseIntensity;
+uniform float uNoiseScale;
+uniform float uCurlStrength;
+uniform float uCurlBoost;
+uniform float uAttractBoost;
+uniform float uAttractStrength;
+uniform float uPhase;
+uniform float uTypingPulse;
+uniform float uIntroBurst;
+uniform vec3 uMouseWorld;
+uniform float uMouseActive;
+uniform float uClickPulse;
+uniform sampler2D tPos;
+uniform sampler2D tVel;
+uniform sampler2D tTarget;
+`;
+
+/* ══════════════════════════════════════════════════════
+   Sim Uniforms
+   ══════════════════════════════════════════════════════ */
+function createParticleSimUniforms() {
+  return {
+    uDelta: { value: 0 },
+    uTime: { value: 0 },
+    uDamping: { value: 0.985 },
+    uNoiseIntensity: { value: 0.20 },
+    uNoiseScale: { value: 1.1 },
+    uCurlStrength: { value: 0.10 },
+    uCurlBoost: { value: 1 },
+    uAttractBoost: { value: 1 },
+    uAttractStrength: { value: 0.30 },
+    uPhase: { value: 0 },
+    uSeedRadius: { value: 12.0 },
+    uTypingPulse: { value: 0 },
+    uIntroBurst: { value: 0 },
+    uGrowthProgress: { value: 0 },
+    uLineOpacityMul: { value: 0.65 },
+    uLineBrightness: { value: 1.2 },
+    uParticleActiveRatio: { value: 0.9 },
+    uMouseWorld: { value: new THREE.Vector3(0, 0, 100) },
+    uMouseActive: { value: 0 },
+    uClickPulse: { value: 0 },
+    tPos: { value: null },
+    tVel: { value: null },
+    tTarget: { value: null },
+  };
+}
+
+/* ── Velocity Step ── */
+function createVelocityStepMaterial(u) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {},
+    depthTest: false,
+    depthWrite: false,
+    vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position,1.0);}`,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      ${VEL_UNIFORMS}
+      varying vec2 vUv;
+      ${COSMIC_FIELD}
+      void main(){
+        vec3 pos=texture2D(tPos,vUv).xyz;
+        vec3 vel=texture2D(tVel,vUv).xyz;
+        vec3 target=texture2D(tTarget,vUv).xyz;
+        int ph=int(uPhase+0.5);
+        vec3 F=computeSaturnField(
+          pos,target,uTime,uDelta,
+          uNoiseIntensity,uNoiseScale,uCurlStrength,uCurlBoost,
+          uAttractStrength,uAttractBoost,uDamping,
+          ph,uTypingPulse,uIntroBurst,
+          uMouseWorld,uMouseActive,uClickPulse
+        );
+        vel=vel*uDamping+F*uDelta;
+        float sp=length(vel);
+        if(sp>4.0) vel*=4.0/sp;
+        gl_FragColor=vec4(vel,1.0);
+      }
+    `,
+  });
+  mat.uniforms = u;
+  return mat;
+}
+
+/* ── Position Step ── */
+function createPositionStepMaterial(uniforms) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {},
+    depthTest: false,
+    depthWrite: false,
+    vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position,1.0);}`,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      uniform float uDelta;
+      uniform float uSeedRadius;
+      uniform sampler2D tPos;
+      uniform sampler2D tVel;
+      uniform sampler2D tTarget;
+      varying vec2 vUv;
+      void main(){
+        vec4 pd=texture2D(tPos,vUv);
+        vec3 pos=pd.xyz;
+        float life=pd.w;
+        vec3 vel=texture2D(tVel,vUv).xyz;
+        pos+=vel*uDelta;
+        life-=uDelta*0.018;
+        if(life<0.0){
+          vec3 tgt=texture2D(tTarget,vUv).xyz;
+          pos=tgt+(fract(sin(dot(vUv,vec2(12.9898,78.233)))*43758.5453)-0.5)*0.15;
+          life=0.7+0.5*fract(sin(dot(vUv,vec2(17.42,63.91)))*12345.67);
+        }
+        float lim=uSeedRadius*2.5;
+        float L=length(pos);
+        if(L>lim) pos*=lim/max(L,1e-4);
+        gl_FragColor=vec4(pos,life);
+      }
+    `,
+  });
+  mat.uniforms = uniforms;
+  return mat;
+}
+
+/* ══════════════════════════════════════════════════════
+   Constellation Line System — permanent, one line per dialogue
+   ══════════════════════════════════════════════════════ */
+function createConstellationLines(scene) {
+  const MAX_LINES = 500;
+  const positions = new Float32Array(MAX_LINES * 6);
+  const alphas = new Float32Array(MAX_LINES * 2);
+  const geo = new THREE.BufferGeometry();
+  const posAttr = new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage);
+  const alpAttr = new THREE.BufferAttribute(alphas, 1).setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute('position', posAttr);
+  geo.setAttribute('aAlpha', alpAttr);
+  geo.setDrawRange(0, 0);
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uOpacity: { value: 0.65 },
+      uBrightness: { value: 1.2 },
+      uTime: { value: 0 },
+    },
+    vertexShader: /* glsl */ `
+      attribute float aAlpha;
+      uniform float uTime;
+      varying float vA;
+      varying float vDepth;
+      void main(){
+        vec4 mv=modelViewMatrix*vec4(position,1.0);
+        vDepth=smoothstep(-18.0,-2.0,mv.z);
+        vA=aAlpha;
+        gl_Position=projectionMatrix*mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      uniform float uOpacity;
+      uniform float uBrightness;
+      uniform float uTime;
+      varying float vA;
+      varying float vDepth;
+      void main(){
+        float shimmer=0.92+0.08*sin(uTime*1.5+gl_FragCoord.x*0.03+gl_FragCoord.y*0.02);
+        float a=uOpacity*vA*(0.55+0.45*vDepth)*shimmer;
+        vec3 col=vec3(0.7,0.82,1.0)*uBrightness;
+        gl_FragColor=vec4(col,a);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+  });
+
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.frustumCulled = false;
+  scene.add(lines);
+
+  let lineCount = 0;
+  const constellationNodes = [];
+
+  function addLine(p1, p2) {
+    if (lineCount >= MAX_LINES) return;
+    const o = lineCount * 6;
+    positions[o] = p1.x; positions[o + 1] = p1.y; positions[o + 2] = p1.z;
+    positions[o + 3] = p2.x; positions[o + 4] = p2.y; positions[o + 5] = p2.z;
+    const ao = lineCount * 2;
+    alphas[ao] = 1.0; alphas[ao + 1] = 1.0;
+    lineCount++;
+    posAttr.needsUpdate = true;
+    alpAttr.needsUpdate = true;
+    geo.setDrawRange(0, lineCount * 2);
+
+    if (!constellationNodes.find((n) => n.distanceTo(p1) < 0.15)) constellationNodes.push(p1.clone());
+    if (!constellationNodes.find((n) => n.distanceTo(p2) < 0.15)) constellationNodes.push(p2.clone());
+  }
+
+  /**
+   * Read particle FBO, extend the constellation graph by one line.
+   * Prefers connecting from an existing node for organic growth.
+   */
+  function addRandomLine(readBuffer, texSize) {
+    const count = texSize * texSize;
+
+    let startPos;
+    if (constellationNodes.length > 0) {
+      startPos = constellationNodes[Math.floor(Math.random() * constellationNodes.length)];
+    } else {
+      const idx = Math.floor(Math.random() * count);
+      startPos = new THREE.Vector3(readBuffer[idx * 4], readBuffer[idx * 4 + 1], readBuffer[idx * 4 + 2]);
+    }
+
+    const idealDist = 0.8 + Math.random() * 2.2;
+    let bestIdx = -1;
+    let bestDiff = Infinity;
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const j = Math.floor(Math.random() * count);
+      const px = readBuffer[j * 4];
+      const py = readBuffer[j * 4 + 1];
+      const pz = readBuffer[j * 4 + 2];
+      const d = Math.sqrt((px - startPos.x) ** 2 + (py - startPos.y) ** 2 + (pz - startPos.z) ** 2);
+      if (d > 0.35 && d < 4.5) {
+        const diff = Math.abs(d - idealDist);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIdx = j;
+        }
+      }
+    }
+    if (bestIdx < 0) return;
+
+    const endPos = new THREE.Vector3(readBuffer[bestIdx * 4], readBuffer[bestIdx * 4 + 1], readBuffer[bestIdx * 4 + 2]);
+
+    const lineObj = { from: startPos.clone(), to: endPos.clone() };
+    animateLineIn(lineObj);
+  }
+
+  function animateLineIn(lineObj) {
+    const driver = { t: 0 };
+    const from = lineObj.from;
+    const to = lineObj.to;
+    const idx = lineCount;
+    if (idx >= MAX_LINES) return;
+
+    lineCount++;
+    geo.setDrawRange(0, lineCount * 2);
+    if (!constellationNodes.find((n) => n.distanceTo(from) < 0.15)) constellationNodes.push(from.clone());
+    if (!constellationNodes.find((n) => n.distanceTo(to) < 0.15)) constellationNodes.push(to.clone());
+
+    gsap.to(driver, {
+      t: 1,
+      duration: 1.2,
+      ease: 'power2.out',
+      onUpdate() {
+        const p = driver.t;
+        const o = idx * 6;
+        positions[o] = from.x; positions[o + 1] = from.y; positions[o + 2] = from.z;
+        positions[o + 3] = THREE.MathUtils.lerp(from.x, to.x, p);
+        positions[o + 4] = THREE.MathUtils.lerp(from.y, to.y, p);
+        positions[o + 5] = THREE.MathUtils.lerp(from.z, to.z, p);
+        const ao = idx * 2;
+        alphas[ao] = p; alphas[ao + 1] = p;
+        posAttr.needsUpdate = true;
+        alpAttr.needsUpdate = true;
+      },
+    });
+  }
+
+  function update(time, uSim) {
+    mat.uniforms.uTime.value = time;
+    mat.uniforms.uOpacity.value = uSim.uLineOpacityMul.value;
+    mat.uniforms.uBrightness.value = uSim.uLineBrightness.value;
+  }
+
+  function fadeAll(duration = 2.0) {
+    if (lineCount === 0) return;
+    gsap.to(mat.uniforms.uOpacity, {
+      value: 0,
+      duration,
+      ease: 'power2.inOut',
+      onComplete() {
+        mat.uniforms.uOpacity.value = 0.65;
+      },
+    });
+    for (let i = 0; i < lineCount; i++) {
+      const ao = i * 2;
+      gsap.to(alphas, {
+        [ao]: 0, [ao + 1]: 0,
+        duration,
+        ease: 'power2.inOut',
+        onUpdate() { alpAttr.needsUpdate = true; },
+      });
+    }
+  }
+
+  function clearAll() {
+    lineCount = 0;
+    constellationNodes.length = 0;
+    for (let i = 0; i < positions.length; i++) positions[i] = 0;
+    for (let i = 0; i < alphas.length; i++) alphas[i] = 0;
+    posAttr.needsUpdate = true;
+    alpAttr.needsUpdate = true;
+    geo.setDrawRange(0, 0);
+    mat.uniforms.uOpacity.value = 0.65;
+  }
+
+  return { lines, addLine, addRandomLine, fadeAll, clearAll, update, getLineCount: () => lineCount };
+}
+
+/* ══════════════════════════════════════════════════════
+   Inspiration Star System — replaces fruit system
+   射出流星 → 永久灵感星 → 搜索高亮
+   ══════════════════════════════════════════════════════ */
+function createInspirationStarSystem(scene, camera, domElement) {
+  const root = new THREE.Group();
+  scene.add(root);
+
+  const savedStars = [];
+  const raycaster = new THREE.Raycaster();
+  raycaster.params.Points = raycaster.params.Points || {};
+  raycaster.params.Points.threshold = 0.35;
+  const pointer = new THREE.Vector2();
+  let onStarClick = null;
+  const labelLayer = document.createElement('div');
+  labelLayer.style.position = 'fixed';
+  labelLayer.style.inset = '0';
+  labelLayer.style.pointerEvents = 'none';
+  labelLayer.style.zIndex = '20';
+  document.body.appendChild(labelLayer);
+
+  /**
+   * Kandinsky-style glowing sphere cluster.
+   * Soft circles with bold geometric primary colors and semi-opacity.
+   */
+  function createGlowStar(pos, radius, brightness, isShootingStar) {
+    const count = isShootingStar ? 100 : 60;
+    const pArr = new Float32Array(count * 3);
+    const sArr = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = radius * Math.pow(Math.random(), 0.8);
+      pArr[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
+      pArr[i * 3 + 1] = Math.cos(phi) * r;
+      pArr[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * r;
+      sArr[i] = Math.random();
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
+    geo.setAttribute('aSeed', new THREE.BufferAttribute(sArr, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uSize: { value: isShootingStar ? 1.8 : 1.0 },
+        uOpacity: { value: brightness },
+        uHighlight: { value: 0 },
+        uBreathing: { value: 0.0 },
+      },
+      vertexShader: /* glsl */ `
+        uniform float uTime;
+        uniform float uSize;
+        uniform float uBreathing;
+        attribute float aSeed;
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main(){
+          vec3 p = position;
+          p += normalize(position + 1e-5) * sin(uTime * 1.4 + aSeed * 12.0) * 0.02;
+
+          // Kandinsky palette: bold primaries + geometric flat tones
+          vec3 deepBlue   = vec3(0.12, 0.22, 0.72);
+          vec3 cadYellow  = vec3(0.95, 0.82, 0.22);
+          vec3 vermillion = vec3(0.88, 0.26, 0.16);
+          vec3 ochre      = vec3(0.82, 0.62, 0.22);
+          vec3 violet     = vec3(0.52, 0.28, 0.76);
+
+          vec3 col;
+          float s4 = aSeed * 4.0;
+          if(aSeed < 0.25) col = mix(deepBlue, violet, s4);
+          else if(aSeed < 0.5) col = mix(cadYellow, ochre, s4 - 1.0);
+          else if(aSeed < 0.75) col = mix(vermillion, deepBlue, s4 - 2.0);
+          else col = mix(ochre, violet, s4 - 3.0);
+
+          vColor = col;
+
+          float breathScale = 1.0 + uBreathing * 0.3 * sin(uTime * 3.5);
+          float pulse = 0.85 + 0.15 * sin(uTime * 1.6 + aSeed * 9.0);
+          vAlpha = pulse * breathScale;
+
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = uSize * breathScale * (220.0 / (-mv.z + 1.5));
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        uniform float uOpacity;
+        uniform float uHighlight;
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main(){
+          float d = length(gl_PointCoord - 0.5);
+          if(d > 0.5) discard;
+          float alpha = smoothstep(0.5, 0.02, d);
+          vec3 col = mix(vColor, vec3(1.0, 0.97, 0.88), uHighlight * 0.5);
+          float bright = 1.0 + uHighlight * 0.6;
+          gl_FragColor = vec4(col * bright, alpha * vAlpha * uOpacity * 0.72);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const pts = new THREE.Points(geo, mat);
+    pts.position.copy(pos);
+    pts.frustumCulled = false;
+    return pts;
+  }
+
+  /** Record a permanent inspiration star with breathing entrance */
+  function addInspirationStar(position, cardData) {
+    const star = createGlowStar(new THREE.Vector3(), 0.03, 0.95, false);
+    star.position.copy(position);
+    star.userData.kind = 'inspirationStar';
+    star.userData.cardData = cardData;
+    star.userData.index = savedStars.length;
+    const ts = cardData?.generatedAt || new Date().toISOString();
+    const kw = (cardData?.title || cardData?.bullets?.[0] || '灵感').toString().slice(0, 18);
+    const tag = document.createElement('div');
+    tag.style.position = 'absolute';
+    tag.style.transform = 'translate(-50%, -100%)';
+    tag.style.padding = '2px 8px';
+    tag.style.borderRadius = '999px';
+    tag.style.fontSize = '11px';
+    tag.style.lineHeight = '1.4';
+    tag.style.whiteSpace = 'nowrap';
+    tag.style.color = '#d7e6ff';
+    tag.style.background = 'rgba(22, 30, 60, 0.42)';
+    tag.style.border = '1px solid rgba(128,170,255,0.35)';
+    tag.style.textShadow = '0 0 8px rgba(110,170,255,0.5)';
+    tag.textContent = `${ts.slice(0, 10)} · ${kw}`;
+    labelLayer.appendChild(tag);
+    star.userData.tag = tag;
+    root.add(star);
+    savedStars.push(star);
+
+    // Breathing entrance: pulsate for ~5s then settle
+    star.material.uniforms.uBreathing.value = 1.0;
+    gsap.to(star.material.uniforms.uBreathing, {
+      value: 0,
+      duration: 5.0,
+      ease: 'power2.out',
+    });
+
+    return star;
+  }
+
+  /**
+   * Shooting-star with dreamy meteor trail.
+   * Kandinsky sphere flies via Bezier curve, spawning a rich
+   * trail of softly glowing, fading spheres behind it.
+   */
+  function spawnShootingStar(cardData) {
+    const seed = performance.now() * 0.001 + savedStars.length * 17.3;
+    const targetPos = getStarAnchorPosition(seed, new THREE.Vector3());
+
+    const starSize = Math.min(window.innerWidth, window.innerHeight) * 0.0006;
+    const star = createGlowStar(new THREE.Vector3(), 0.03 * starSize, 1.0, true);
+    star.material.uniforms.uSize.value = 2.0;
+    star.material.uniforms.uBreathing.value = 1.0;
+
+    const startWorld = new THREE.Vector3(0, 0, -2.5);
+    camera.localToWorld(startWorld);
+    star.position.copy(startWorld);
+    root.add(star);
+
+    const mid = startWorld.clone().lerp(targetPos, 0.35).add(
+      new THREE.Vector3(
+        (Math.random() - 0.5) * 3.0,
+        0.8 + Math.random() * 1.5,
+        (Math.random() - 0.5) * 3.0,
+      ),
+    );
+
+    const trail = [];
+    const TRAIL_MAX = 32;
+    let lastTrailP = -1;
+
+    return new Promise((resolve) => {
+      const driver = { t: 0 };
+      gsap.to(driver, {
+        t: 1,
+        duration: 2.8,
+        ease: 'power3.inOut',
+        onUpdate() {
+          const p = driver.t;
+          const omt = 1 - p;
+          const x = omt * omt * startWorld.x + 2 * omt * p * mid.x + p * p * targetPos.x;
+          const y = omt * omt * startWorld.y + 2 * omt * p * mid.y + p * p * targetPos.y;
+          const z = omt * omt * startWorld.z + 2 * omt * p * mid.z + p * p * targetPos.z;
+          star.position.set(x, y, z);
+          star.rotation.y = p * Math.PI * 3;
+
+          const sizeAnim = p < 0.15
+            ? THREE.MathUtils.lerp(0.3, 1.2, p / 0.15)
+            : THREE.MathUtils.lerp(1.2, 0.6, (p - 0.15) / 0.85);
+          star.scale.setScalar(sizeAnim);
+          star.material.uniforms.uOpacity.value = p < 0.1
+            ? THREE.MathUtils.lerp(0.2, 1.0, p / 0.1)
+            : 1.0 - Math.max(0, p - 0.82) * 4.5;
+
+          // Dreamy trail: emit a particle every ~3% of progress
+          if (trail.length < TRAIL_MAX && p > 0.04 && p - lastTrailP > 0.028) {
+            lastTrailP = p;
+            const trailScale = 0.15 + Math.random() * 0.35;
+            const trailR = 0.015 + Math.random() * 0.012;
+            const tp = createGlowStar(star.position.clone(), trailR, 0.55, false);
+            tp.scale.setScalar(trailScale);
+            root.add(tp);
+            trail.push(tp);
+
+            const fadeDur = 1.2 + Math.random() * 0.6;
+            gsap.to(tp.material.uniforms.uOpacity, { value: 0, duration: fadeDur, ease: 'power2.out' });
+            gsap.to(tp.scale, {
+              x: 0.02, y: 0.02, z: 0.02,
+              duration: fadeDur,
+              ease: 'power2.out',
+              onComplete() { root.remove(tp); tp.geometry.dispose(); tp.material.dispose(); },
+            });
+          }
+        },
+        onComplete() {
+          root.remove(star);
+          star.geometry.dispose();
+          star.material.dispose();
+          addInspirationStar(targetPos, cardData);
+          resolve();
+        },
+      });
+    });
+  }
+
+  /** Highlight stars matching keyword, dim others */
+  function searchHighlight(keyword) {
+    const kw = (keyword || '').trim().toLowerCase();
+    for (const star of savedStars) {
+      const cd = star.userData.cardData;
+      if (!cd || !kw) {
+        star.material.uniforms.uHighlight.value = 0;
+        star.material.uniforms.uOpacity.value = 0.95;
+        continue;
+      }
+      const text = [cd.title, ...(cd.bullets || []), ...(cd.actions || [])].join(' ').toLowerCase();
+      const match = text.includes(kw);
+      star.material.uniforms.uHighlight.value = match ? 1.0 : 0;
+      star.material.uniforms.uOpacity.value = match ? 1.0 : 0.2;
+    }
+  }
+
+  function clearHighlight() {
+    for (const star of savedStars) {
+      star.material.uniforms.uHighlight.value = 0;
+      star.material.uniforms.uOpacity.value = 0.95;
+    }
+  }
+
+  /** Return the cardData of the first star matching keyword, or null */
+  function getFirstMatch(keyword) {
+    const kw = (keyword || '').trim().toLowerCase();
+    if (!kw) return null;
+    for (const star of savedStars) {
+      const cd = star.userData.cardData;
+      if (!cd) continue;
+      const text = [cd.title, ...(cd.bullets || []), ...(cd.actions || [])].join(' ').toLowerCase();
+      if (text.includes(kw)) return cd;
+    }
+    return null;
+  }
+
+  function setOnStarClick(cb) { onStarClick = cb; }
+
+  function handlePointer(clientX, clientY) {
+    const rect = domElement.getBoundingClientRect();
+    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObjects(savedStars, false)[0];
+    if (hit?.object?.userData?.kind === 'inspirationStar') {
+      if (onStarClick) onStarClick(hit.object.userData.cardData);
+      return true;
+    }
+    return false;
+  }
+
+  function update(time) {
+    for (let i = 0; i < savedStars.length; i++) {
+      const s = savedStars[i];
+      s.material.uniforms.uTime.value = time + i * 0.4;
+      const tag = s.userData.tag;
+      if (!tag) continue;
+      const p = s.position.clone().project(camera);
+      const visible = p.z > -1 && p.z < 1;
+      if (!visible) {
+        tag.style.opacity = '0';
+        continue;
+      }
+      const x = (p.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-p.y * 0.5 + 0.5) * window.innerHeight - 14;
+      tag.style.left = `${x}px`;
+      tag.style.top = `${y}px`;
+      tag.style.opacity = '0.88';
+    }
+  }
+
+  /** Only resets dialogue-specific state; stars are permanent */
+  function resetDialogue() { /* noop: stars persist */ }
+
+  return {
+    addInspirationStar,
+    spawnShootingStar,
+    searchHighlight,
+    clearHighlight,
+    getFirstMatch,
+    setOnStarClick,
+    handlePointer,
+    update,
+    resetDialogue,
+    getSavedStars: () => savedStars,
+
+    /* backward compat aliases */
+    addSmallFruit() {},
+    spawnBlossom() {},
+    spawnFinalFruit: spawnShootingStar,
+    resetAll: resetDialogue,
+    setOnSmallFruitClick: setOnStarClick,
+    getSmallFruitCount: () => 0,
+  };
+}
+
+/** Backward compat aliases for core-entry imports */
+const createFruitSystem = createInspirationStarSystem;
+function createNeuralLineSystem(scene, renderer, texSize) {
+  const sys = createConstellationLines(scene);
+  sys._renderer = renderer;
+  sys._texSize = texSize;
+  return sys;
+}
+
+// === controls-ui.js ===
+/**
+ * controls-ui.js — 星空灵感交互控制
+ * 对话加星座连线 / 结束射流星 / 搜索高亮 / 新对话保留历史
+ */
+
+const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_MODEL = 'deepseek-chat';
+
+const SYSTEM_PROMPT_ZH = `你是一位温和、专业、有同理心的灵感引导师。用户会用语音或文字告诉你突然冒出的灵感。
+你的职责是一步步引导用户梳理思路：先倾听，再追问关键细节，帮助用户从模糊想法走向可执行计划。
+每次回复控制在 2-4 句话以内，语气温暖但不啰嗦。善用反问来激发更深层思考。`;
+
+const SYSTEM_PROMPT_EN = `You are a warm, professional, and empathetic creativity coach.
+The user shares ideas by voice or text. Guide them step by step: listen first, ask key questions, and help turn fuzzy thoughts into actionable plans.
+Keep each reply to 2-4 sentences, warm and concise. Use reflective questions to deepen thinking.`;
+
+const CARD_SYSTEM_PROMPT_ZH = `你是「今日灵感卡片」生成器。用户会提供他与 AI 导师之间的完整中文对话。
+你必须严格根据对话中真实出现的内容进行总结，不要编造对话里没有的主题或细节。
+输出必须是合法 JSON，且仅包含三个字段：
+- title: 简短标题（不超过 8 个汉字）
+- bullets: 字符串数组，3-8 条，按时间顺序总结主要洞察
+- actions: 字符串数组，2-6 条，每条为具体可执行的小行动
+不要输出 markdown、代码块或其它文字，只输出一行 JSON。`;
+
+const CARD_SYSTEM_PROMPT_EN = `You generate "Today's Inspiration Card".
+The user will provide the full conversation between user and AI.
+Summarize only what really appears in the chat and do not fabricate details.
+Output valid JSON with exactly three fields:
+- title: short title (<= 8 words)
+- bullets: string array, 3-8 items in chronological order
+- actions: string array, 2-6 concrete next actions
+Output one-line JSON only. No markdown, no code fences, no extra text.`;
+
+const FALLBACK_REPLIES_ZH = [
+  '先慢慢说：这个灵感第一次出现时，你最强烈的感受是什么？',
+  '如果把它们连成一条线，你觉得中间缺的是哪一步？',
+  '有没有一个最小、本周就能做的尝试？',
+  '我们试着用一句话概括：这件事对你真正重要的是什么？',
+];
+const FALLBACK_REPLIES_EN = [
+  'Take it slow: what feeling was strongest when this idea first appeared?',
+  'If these thoughts form a chain, which missing step matters most?',
+  'What is one tiny experiment you can do this week?',
+  'In one sentence, what makes this idea truly important to you?',
+];
+
+const TEXTS = {
+  zh: {
+    me: '你', ai: 'AI', thinking: '思考中…',
+    cardSummary: '完整对话总结', cardActions: '行动计划',
+    cardDismiss: '收起', cardSave: '保存', cardNewChat: '新对话',
+    cardTitle: '灵感卡片', cardFilePrefix: '灵感卡片',
+    detailUser: '你的想法', detailAI: 'AI 回应',
+    saveToast: '✨ 已保存！你可以在顶部<span class="toast-hint">「搜索灵感星」</span>框中随时回顾灵感',
+  },
+  en: {
+    me: 'You', ai: 'AI', thinking: 'Thinking...',
+    cardSummary: 'Conversation Summary', cardActions: 'Action Plan',
+    cardDismiss: 'Hide', cardSave: 'Save', cardNewChat: 'New Chat',
+    cardTitle: 'Inspiration Card', cardFilePrefix: 'inspiration-card',
+    detailUser: 'Your Thought', detailAI: 'AI Response',
+    saveToast: '✨ Saved! Use the <span class="toast-hint">"Search Stars"</span> box above to revisit your inspirations',
+  },
+};
+
+function getLang() {
+  const lang = (typeof window !== 'undefined' && window.__APP_LANG) || localStorage.getItem('app-lang') || 'zh';
+  return lang === 'en' ? 'en' : 'zh';
+}
+function t(key) { return TEXTS[getLang()]?.[key] || TEXTS.zh[key] || key; }
+
+function getApiKey() {
+  const el = document.getElementById('ds-key');
+  return el ? el.value.trim() : '';
+}
+
+async function fetchDeepSeek(messages) {
+  const key = getApiKey();
+  if (!key) return null;
+  try {
+    const res = await fetch(DEEPSEEK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ model: DEEPSEEK_MODEL, messages, temperature: 0.35, max_tokens: 620 }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() || null;
+  } catch { return null; }
+}
+
+function buildLocalCard(transcript) {
+  const isEn = getLang() === 'en';
+  const bullets = transcript
+    .map((m) => `${m.role === 'user' ? (isEn ? 'You' : '你') : 'AI'}: ${m.text}`)
+    .slice(-10);
+  return {
+    title: isEn ? 'Inspiration Growth Log' : '灵感生长记录',
+    bullets: bullets.length ? bullets : [isEn ? 'No meaningful conversation yet.' : '尚未形成有效对话。'],
+    actions: isEn
+      ? ['Pick one resonant idea and test it for 15 minutes today', 'Break the idea into small verifiable steps']
+      : ['挑一条最有共鸣的想法，今天做 15 分钟尝试', '把想法拆成可验证的小步骤'],
+  };
+}
+
+/* ── Save toast ── */
+let toastTimer = null;
+function showSaveToast() {
+  const el = document.getElementById('save-toast');
+  if (!el) return;
+  el.innerHTML = t('saveToast');
+  el.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('visible'), 4200);
+}
+
+/* ══════════════════════════════════════════════════════ */
+
+function initControls(api, camRig) {
+  const transcript = [];
+  let state = 'idle';
+  let pendingUserText = '';
+
+  const msgStream = document.getElementById('msg-stream');
+  const splash = document.getElementById('splash-text');
+  const textInput = document.getElementById('text-input');
+  const btnSend = document.getElementById('btn-send');
+  const btnVoice = document.getElementById('btn-voice');
+  const btnEnd = document.getElementById('btn-end');
+  const cardDock = document.getElementById('card-dock');
+  const starDetail = document.getElementById('fruit-detail');
+  const statusEl = document.getElementById('status-line');
+  const searchInput = document.getElementById('search-stars');
+  const recognition = createRecognition();
+
+  function setStatus(s) { if (statusEl) statusEl.textContent = s; }
+
+  function addImmMsg(role, text) {
+    if (!msgStream) return;
+    const el = document.createElement('div');
+    el.className = `imm-msg ${role === 'user' ? 'user-msg' : 'ai-msg'}`;
+    el.innerHTML = `<div class="msg-role">${role === 'user' ? t('me') : t('ai')}</div><div>${text}</div>`;
+    msgStream.appendChild(el);
+    const all = msgStream.querySelectorAll('.imm-msg');
+    if (all.length > 8) {
+      const oldest = all[0];
+      oldest.style.opacity = '0';
+      setTimeout(() => oldest.remove(), 450);
+    }
+    setTimeout(() => el.classList.add('fading'), 12000);
+  }
+
+  /** Dialogue FX: pulse + constellation line */
+  function runDialogueFX() {
+    setParticlePhase('burst');
+    api.simUniforms.uCurlBoost.value = 3.0;
+    gsap.to(api.simUniforms.uCurlBoost, { value: 1, duration: 1.6, ease: 'power2.out', delay: 0.1 });
+    gsap.delayedCall(0.4, () => setParticlePhase('attract'));
+    gsap.delayedCall(2.0, () => setParticlePhase('idle'));
+    gsap.fromTo(camRig, { nudge: 0 }, { nudge: 0.25, duration: 0.5, yoyo: true, repeat: 1, ease: 'sine.inOut' });
+
+    const buf = api.readParticlePositions();
+    api.constellationSystem.addRandomLine(buf, api.texSize);
+  }
+
+  async function assistantReply() {
+    const typing = document.createElement('div');
+    typing.className = 'imm-msg ai-msg';
+    typing.style.opacity = '0.5';
+    typing.innerHTML = `<div class="msg-role">${t('ai')}</div><div>${t('thinking')}</div>`;
+    msgStream?.appendChild(typing);
+
+    const messages = [
+      { role: 'system', content: getLang() === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_ZH },
+      ...transcript.map((m) => ({ role: m.role, content: m.text })),
+    ];
+    let text = await fetchDeepSeek(messages);
+    if (!text) {
+      const fb = getLang() === 'en' ? FALLBACK_REPLIES_EN : FALLBACK_REPLIES_ZH;
+      text = fb[transcript.length % fb.length];
+    }
+    typing.remove();
+
+    transcript.push({ role: 'assistant', text });
+    addImmMsg('assistant', text);
+    runDialogueFX();
+    setStatus('');
+  }
+
+  function handleUserInput(text) {
+    const v = (text || '').trim();
+    if (!v || state === 'card' || state === 'ending') return;
+    if (state === 'idle') {
+      state = 'chatting';
+      splash?.classList.add('hidden');
+    }
+    pendingUserText = v;
+    transcript.push({ role: 'user', text: v });
+    addImmMsg('user', v);
+    api.simUniforms.uTypingPulse.value = 0.8;
+    assistantReply();
+  }
+
+  async function requestSummary() {
+    if (!transcript.length) return buildLocalCard(transcript);
+    const local = buildLocalCard(transcript);
+    const ctx = transcript.map((m) => `${m.role === 'user' ? (getLang() === 'en' ? 'User' : '用户') : 'AI'}: ${m.text}`).join('\n');
+    const raw = await fetchDeepSeek([
+      { role: 'system', content: getLang() === 'en' ? CARD_SYSTEM_PROMPT_EN : CARD_SYSTEM_PROMPT_ZH },
+      { role: 'user', content: getLang() === 'en' ? `Full conversation below, generate card JSON:\n\n${ctx}` : `以下为完整对话，请据此生成 JSON 卡片：\n\n${ctx}` },
+    ]);
+    if (!raw) return local;
+    try {
+      const clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      const d = JSON.parse(clean);
+      if (d?.title && Array.isArray(d?.bullets)) {
+        return {
+          title: d.title,
+          bullets: d.bullets.filter(Boolean).slice(0, 10),
+          actions: Array.isArray(d.actions) ? d.actions.filter(Boolean).slice(0, 8) : local.actions,
+        };
+      }
+    } catch { /* ignore */ }
+    return local;
+  }
+
+  function renderCard(card) {
+    const ts = new Date().toLocaleString(getLang() === 'en' ? 'en-US' : 'zh-CN', { hour12: false });
+    const wrap = document.createElement('div');
+    wrap.className = 'inspiration-card';
+    wrap.innerHTML = `
+      <header><h2 class="card-title"></h2><time></time></header>
+      <section><h4>${t('cardSummary')}</h4><ul class="card-bullets"></ul></section>
+      <section><h4>${t('cardActions')}</h4><ol class="card-actions"></ol></section>
+      <div class="card-actions-row">
+        <button type="button" class="card-dismiss">${t('cardDismiss')}</button>
+        <button type="button" class="card-save">${t('cardSave')}</button>
+        <button type="button" class="card-newchat">${t('cardNewChat')}</button>
+      </div>`;
+    wrap.querySelector('.card-title').textContent = card.title || t('cardTitle');
+    wrap.querySelector('time').textContent = ts;
+    const ul = wrap.querySelector('.card-bullets');
+    const ol = wrap.querySelector('.card-actions');
+    card.bullets.forEach((b) => { const li = document.createElement('li'); li.textContent = b; ul.appendChild(li); });
+    card.actions.forEach((a) => { const li = document.createElement('li'); li.textContent = a; ol.appendChild(li); });
+    wrap.querySelector('.card-dismiss').addEventListener('click', () => {
+      cardDock?.classList.remove('card-visible');
+      cardDock.innerHTML = '';
+      state = 'idle';
+    });
+    wrap.querySelector('.card-save').addEventListener('click', () => {
+      const blob = new Blob([wrap.innerText], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${t('cardFilePrefix')}-${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showSaveToast();
+    });
+    wrap.querySelector('.card-newchat').addEventListener('click', resetChat);
+    return wrap;
+  }
+
+  function showCard(cardData) {
+    const card = renderCard(cardData);
+    cardDock.innerHTML = '';
+    cardDock.appendChild(card);
+    cardDock.classList.add('card-visible');
+    gsap.fromTo(card, { opacity: 0, y: 20, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: 'power2.out' });
+  }
+
+  /** End session: shoot a star, fade constellation lines, then show card */
+  async function endSession() {
+    if (!transcript.length || state === 'card' || state === 'ending') return;
+    state = 'ending';
+
+    const cardData = await requestSummary();
+    cardData.generatedAt = new Date().toISOString();
+    await api.inspirationStarSystem.spawnShootingStar(cardData);
+    api.constellationSystem.fadeAll(2.0);
+    showCard(cardData);
+    state = 'card';
+    setParticlePhase('idle');
+  }
+
+  /** New chat: clear dialogue and constellation lines, keep stars */
+  function resetChat() {
+    transcript.length = 0;
+    state = 'idle';
+    if (msgStream) msgStream.innerHTML = '';
+    cardDock?.classList.remove('card-visible');
+    if (cardDock) cardDock.innerHTML = '';
+    starDetail?.classList.remove('visible');
+    api.constellationSystem.clearAll();
+    setParticlePhase('idle');
+    splash?.classList.remove('hidden');
+    setStatus('');
+  }
+
+  /** Click on an inspiration star → show its card */
+  api.inspirationStarSystem.setOnStarClick((cardData) => {
+    if (cardData) showCard(cardData);
+  });
+
+  /* ── Search: highlight matching stars AND auto-extract their card ── */
+  if (searchInput) {
+    let searchTimeout;
+    let searchCardShown = false;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        const kw = searchInput.value.trim();
+        if (kw) {
+          api.inspirationStarSystem.searchHighlight(kw);
+          const matched = api.inspirationStarSystem.getFirstMatch(kw);
+          if (matched && !searchCardShown) {
+            searchCardShown = true;
+            showCard(matched);
+          } else if (!matched) {
+            if (searchCardShown) {
+              cardDock?.classList.remove('card-visible');
+              if (cardDock) cardDock.innerHTML = '';
+              searchCardShown = false;
+            }
+          }
+        } else {
+          api.inspirationStarSystem.clearHighlight();
+          if (searchCardShown) {
+            cardDock?.classList.remove('card-visible');
+            if (cardDock) cardDock.innerHTML = '';
+            searchCardShown = false;
+          }
+        }
+      }, 400);
+    });
+  }
+
+  /* ── UI event bindings ── */
+  textInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const v = textInput.value;
+      textInput.value = '';
+      handleUserInput(v);
+    }
+  });
+  btnSend?.addEventListener('click', () => {
+    const v = textInput?.value || '';
+    if (textInput) textInput.value = '';
+    handleUserInput(v);
+  });
+  btnEnd?.addEventListener('click', endSession);
+  window.addEventListener('tree:new-chat', resetChat);
+
+  if (recognition) {
+    btnVoice?.addEventListener('click', () => {
+      try { recognition.start(); btnVoice.classList.add('recording'); } catch { /* noop */ }
+    });
+    recognition.onresult = (ev) => {
+      const last = ev.results[ev.results.length - 1];
+      const text = (last[0]?.transcript || '').trim();
+      btnVoice?.classList.remove('recording');
+      handleUserInput(text);
+    };
+    recognition.onerror = () => btnVoice?.classList.remove('recording');
+    recognition.onend = () => btnVoice?.classList.remove('recording');
+  }
+
+  /* ── Language sync ── */
+  function syncLanguageUI() {
+    const u = starDetail?.querySelector('.fd-user .fd-label');
+    const a = starDetail?.querySelector('.fd-ai .fd-label');
+    if (u) u.textContent = t('detailUser');
+    if (a) a.textContent = t('detailAI');
+    msgStream?.querySelectorAll('.imm-msg .msg-role').forEach((el) => {
+      const p = el.closest('.imm-msg');
+      if (!p) return;
+      el.textContent = p.classList.contains('user-msg') ? t('me') : t('ai');
+    });
+  }
+  window.addEventListener('app:lang-change', syncLanguageUI);
+
+  bindPanel(api);
+  return { resetChat };
+}
+
+/* ── Panel bindings ── */
+function bindPanel(api) {
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const apply = () => fn(parseFloat(el.value));
+    el.addEventListener('input', apply);
+    apply();
+  };
+  bind('sl-point', (v) => { if (api.morphUniforms) api.morphUniforms.uPointSize.value = v; });
+  bind('sl-spread', (v) => { if (api.morphUniforms) api.morphUniforms.uSpread.value = v; });
+  bind('sl-mouse-force', (v) => { api.simUniforms.uAttractBoost.value = v / 2.8; });
+  bind('sl-line-op', (v) => { api.simUniforms.uLineOpacityMul.value = v; });
+  bind('sl-line-bright', (v) => { api.simUniforms.uLineBrightness.value = v; });
+  bind('sl-bloom', (v) => { api.bloomPass.strength = v; });
+  bind('sl-after', (v) => { const u = api.afterimagePass.uniforms; if (u?.damp) u.damp.value = v; });
+
+  document.querySelectorAll('.shape-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.shape-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      api.switchShape?.(btn.dataset.shape);
+    });
+  });
+
+  const clA = document.getElementById('cl-a');
+  const clB = document.getElementById('cl-b');
+  if (clA) clA.addEventListener('input', () => { api.morphUniforms?.uColor1.value.set(clA.value); });
+  if (clB) clB.addEventListener('input', () => { api.morphUniforms?.uColor2.value.set(clB.value); });
+}
+
+function createRecognition() {
+  const SR = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = getLang() === 'en' ? 'en-US' : 'zh-CN';
+  r.continuous = false;
+  r.interimResults = false;
+  r.maxAlternatives = 1;
+  window.addEventListener('app:lang-change', (e) => {
+    r.lang = e?.detail?.lang === 'en' ? 'en-US' : 'zh-CN';
+  });
+  return r;
+}
+
+// === core-entry.js ===
+/**
+ * core-entry.js — 形态变换粒子系统 (星云/爱心/土星/烟花)
+ * GPGPU 星座连线 + Bloom / Afterimage / ACES
+ */
+
+const SIZE = PARTICLE_SIM_TEXTURE_SIZE;
+const COUNT = SIZE * SIZE;
+const SIM_TEX_TYPE = THREE.HalfFloatType;
+
+function gaussRand() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+/* ═══ Shape generators ═══ */
+
+function genNebulaShape() {
+  const d = new Float32Array(COUNT * 4);
+  for (let i = 0; i < COUNT; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.abs(gaussRand()) * 3.2;
+    d[i * 4] = Math.cos(a) * r;
+    d[i * 4 + 1] = Math.sin(a) * r * 0.65;
+    d[i * 4 + 2] = gaussRand() * 1.2;
+    d[i * 4 + 3] = Math.random();
+  }
+  return d;
+}
+
+function genHeartShape() {
+  const d = new Float32Array(COUNT * 4);
+  const S = 0.21;
+  for (let i = 0; i < COUNT; i++) {
+    const t = Math.random() * Math.PI * 2;
+    let x = 16 * Math.pow(Math.sin(t), 3) * S;
+    let y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * S;
+    x += gaussRand() * 0.2;
+    y += gaussRand() * 0.2;
+    const z = gaussRand() * 0.12;
+    d[i * 4] = x;
+    d[i * 4 + 1] = y;
+    d[i * 4 + 2] = z;
+    d[i * 4 + 3] = Math.random();
+  }
+  return d;
+}
+
+function genSaturnShape() {
+  const d = new Float32Array(COUNT * 4);
+  const sphereN = Math.floor(COUNT * 0.55);
+  const TILT = 26 * Math.PI / 180;
+  const CT = Math.cos(TILT), ST = Math.sin(TILT);
+  for (let i = 0; i < COUNT; i++) {
+    let x, y, z;
+    if (i < sphereN) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 1.5 * (0.85 + 0.15 * Math.random());
+      x = Math.sin(phi) * Math.cos(theta) * r;
+      y = Math.cos(phi) * r * 0.88;
+      z = Math.sin(phi) * Math.sin(theta) * r;
+    } else {
+      const angle = Math.random() * Math.PI * 2;
+      const ringR = 2.2 + Math.random() * 1.6;
+      x = Math.cos(angle) * ringR;
+      y = (Math.random() - 0.5) * 0.04;
+      z = Math.sin(angle) * ringR;
+    }
+    const ry = y * CT - z * ST;
+    const rz = y * ST + z * CT;
+    d[i * 4] = x;
+    d[i * 4 + 1] = ry;
+    d[i * 4 + 2] = rz;
+    d[i * 4 + 3] = Math.random();
+  }
+  return d;
+}
+
+function genFireworkShape() {
+  const d = new Float32Array(COUNT * 4);
+  const BURSTS = 7;
+  const centers = [];
+  for (let b = 0; b < BURSTS; b++) {
+    centers.push({
+      x: (Math.random() - 0.5) * 5.5,
+      y: Math.random() * 3.5 - 0.8,
+      z: (Math.random() - 0.5) * 2,
+    });
+  }
+  for (let i = 0; i < COUNT; i++) {
+    const c = centers[i % BURSTS];
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = Math.pow(Math.random(), 0.6) * 1.8;
+    d[i * 4] = c.x + Math.sin(phi) * Math.cos(theta) * r;
+    d[i * 4 + 1] = c.y + Math.cos(phi) * r - Math.pow(r, 1.5) * 0.12;
+    d[i * 4 + 2] = c.z + Math.sin(phi) * Math.sin(theta) * r * 0.5;
+    d[i * 4 + 3] = Math.random();
+  }
+  return d;
+}
+
+/* ═══ Main ═══ */
+
+async function main() {
+  const canvas = document.getElementById('main-canvas');
+  if (!canvas) return;
+
+  /* ── Renderer ── */
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  /* ── Scene ── */
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000011);
+
+  /* ── Camera ── */
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.position.set(0, 0, 8);
+
+  /* ── Shared uniforms ── */
+  const sharedUniforms = {
+    uTime: { value: 0 },
+    uGrowthProgress: { value: 0 },
+  };
+
+  /* ── Background starfield (tree.js) ── */
+  const treeApi = initTree(scene, sharedUniforms);
+
+  /* ── GPGPU setup ── */
+  const simUniforms = createParticleSimUniforms();
+
+  const mkRT = () =>
+    new THREE.WebGLRenderTarget(SIZE, SIZE, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat,
+      type: SIM_TEX_TYPE,
+      depthBuffer: false,
+      stencilBuffer: false,
+    });
+
+  /* ── Generate shape data ── */
+  const nebulaData = genNebulaShape();
+  const heartData = genHeartShape();
+  const saturnData = genSaturnShape();
+  const fireworkData = genFireworkShape();
+
+  const mkTex = (data) => {
+    const t = new THREE.DataTexture(data, SIZE, SIZE, THREE.RGBAFormat, SIM_TEX_TYPE);
+    t.needsUpdate = true;
+    t.magFilter = THREE.NearestFilter;
+    t.minFilter = THREE.NearestFilter;
+    return t;
+  };
+
+  const shapes = {
+    nebula: mkTex(nebulaData),
+    heart: mkTex(heartData),
+    saturn: mkTex(saturnData),
+    firework: mkTex(fireworkData),
+  };
+  let currentShapeName = 'nebula';
+
+  /* ── Initialize GPGPU buffers from nebula shape ── */
+  const initPos = new Float32Array(COUNT * 4);
+  const initVel = new Float32Array(COUNT * 4);
+  for (let i = 0; i < COUNT; i++) {
+    initPos[i * 4] = nebulaData[i * 4] + (Math.random() - 0.5) * 0.2;
+    initPos[i * 4 + 1] = nebulaData[i * 4 + 1] + (Math.random() - 0.5) * 0.2;
+    initPos[i * 4 + 2] = nebulaData[i * 4 + 2] + (Math.random() - 0.5) * 0.2;
+    initPos[i * 4 + 3] = 0.4 + Math.random() * 0.6;
+    initVel[i * 4 + 3] = 1;
+  }
+
+  const posRT = [mkRT(), mkRT()];
+  const velRT = [mkRT(), mkRT()];
+  simUniforms.tPos.value = mkTex(initPos);
+  simUniforms.tVel.value = mkTex(initVel);
+  simUniforms.tTarget.value = shapes.nebula;
+
+  const velMat = createVelocityStepMaterial(simUniforms);
+  const posMat = createPositionStepMaterial(simUniforms);
+  const quadMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), velMat);
+  const simScene = new THREE.Scene();
+  simScene.add(quadMesh);
+  const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+
+  /* ── Constellation lines ── */
+  const constellationSystem = createConstellationLines(scene);
+
+  /* ── Inspiration stars ── */
+  const inspirationStarSystem = createInspirationStarSystem(scene, camera, renderer.domElement);
+
+  /* ── Read-back buffer ── */
+  const readBuf = new Float32Array(COUNT * 4);
+  function readParticlePositions() {
+    renderer.readRenderTargetPixels(posRT[0], 0, 0, SIZE, SIZE, readBuf);
+    return readBuf;
+  }
+
+  /* ── GPGPU step ── */
+  function gpgpuStep(dt, t) {
+    simUniforms.uDelta.value = dt;
+    simUniforms.uTime.value = t;
+    simUniforms.uPhase.value = getPhaseId();
+    simUniforms.uTypingPulse.value *= 0.92;
+    sharedUniforms.uTime.value = t;
+
+    quadMesh.material = velMat;
+    renderer.setRenderTarget(velRT[1]);
+    renderer.render(simScene, simCam);
+    [velRT[0], velRT[1]] = [velRT[1], velRT[0]];
+    simUniforms.tVel.value = velRT[0].texture;
+
+    quadMesh.material = posMat;
+    renderer.setRenderTarget(posRT[1]);
+    renderer.render(simScene, simCam);
+    [posRT[0], posRT[1]] = [posRT[1], posRT[0]];
+    simUniforms.tPos.value = posRT[0].texture;
+
+    renderer.setRenderTarget(null);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     Morphing particle render system
+     ══════════════════════════════════════════════════════ */
+  const morphUniforms = {
+    tShapeA: { value: shapes.nebula },
+    tShapeB: { value: shapes.nebula },
+    uMorphProgress: { value: 0 },
+    uPointSize: { value: 1.5 },
+    uTime: sharedUniforms.uTime,
+    uMouse: { value: new THREE.Vector2(0, 0) },
+    uMouseActive: { value: 0 },
+    uSpread: { value: 1.0 },
+    uColor1: { value: new THREE.Color('#2266ff') },
+    uColor2: { value: new THREE.Color('#9944dd') },
+  };
+
+  const pGeo = new THREE.BufferGeometry();
+  const dummyPos = new Float32Array(COUNT * 3);
+  pGeo.setAttribute('position', new THREE.BufferAttribute(dummyPos, 3));
+  const refs = new Float32Array(COUNT * 2);
+  for (let i = 0; i < COUNT; i++) {
+    refs[i * 2] = (i % SIZE + 0.5) / SIZE;
+    refs[i * 2 + 1] = (Math.floor(i / SIZE) + 0.5) / SIZE;
+  }
+  pGeo.setAttribute('reference', new THREE.BufferAttribute(refs, 2));
+
+  const particleMaterial = new THREE.ShaderMaterial({
+    uniforms: morphUniforms,
+    vertexShader: /* glsl */ `
+      uniform sampler2D tShapeA;
+      uniform sampler2D tShapeB;
+      uniform float uMorphProgress;
+      uniform float uPointSize;
+      uniform float uTime;
+      uniform vec2 uMouse;
+      uniform float uMouseActive;
+      uniform float uSpread;
+      uniform vec3 uColor1;
+      uniform vec3 uColor2;
+      attribute vec2 reference;
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      float h11(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+      void main(){
+        float seed = h11(reference * 57.0);
+
+        vec4 dA = texture2D(tShapeA, reference);
+        vec4 dB = texture2D(tShapeB, reference);
+        float bseed = mix(dA.w, dB.w, uMorphProgress);
+
+        vec3 pos = mix(dA.xyz, dB.xyz, uMorphProgress) * uSpread;
+
+        if(uMouseActive > 0.01){
+          vec3 mouseW = vec3(uMouse.x * 6.0, uMouse.y * 4.0, 0.0);
+          vec3 toM = mouseW - pos;
+          float mDist = length(toM);
+          float attract = smoothstep(6.0, 0.3, mDist) * uMouseActive * 0.3;
+          pos += toM * attract;
+        }
+
+        pos += vec3(
+          sin(uTime * 0.3 + seed * 20.0),
+          cos(uTime * 0.25 + seed * 15.0),
+          sin(uTime * 0.35 + seed * 25.0)
+        ) * 0.06;
+
+        vColor = mix(uColor1, uColor2, seed);
+
+        float bright = 0.92;
+        if(bseed > 0.97) bright = 1.8;
+        else if(bseed > 0.92) bright = 1.35;
+        else if(bseed > 0.86) bright = 1.12;
+        vColor *= bright;
+
+        float twinkle = 0.5 + 0.5 * sin(uTime * (0.3 + seed * 1.5) + seed * 50.0);
+        twinkle = twinkle * twinkle;
+        vAlpha = twinkle * 0.9;
+
+        vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+        gl_Position = projectionMatrix * mv;
+        float sz = uPointSize * (0.3 + seed * 0.7);
+        if(bseed > 0.92) sz *= 2.0;
+        gl_PointSize = clamp(sz * (24.0 / max(3.0, -mv.z)), 0.8, 7.5);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec3 vColor;
+      varying float vAlpha;
+      void main(){
+        float d = length(gl_PointCoord - 0.5);
+        float alpha = smoothstep(0.5, 0.02, d);
+        if(alpha < 0.01) discard;
+        gl_FragColor = vec4(vColor, alpha * vAlpha * 0.62);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+  });
+
+  const particlePoints = new THREE.Points(pGeo, particleMaterial);
+  particlePoints.frustumCulled = false;
+  particlePoints.renderOrder = 0;
+  scene.add(particlePoints);
+
+  // Fallback dense stardust layer: guarantees visible particles on
+  // devices where the main GPGPU/morph layer appears too dim or unstable.
+  const FB_COUNT = 18000;
+  const fbPos = new Float32Array(FB_COUNT * 3);
+  const fbSeed = new Float32Array(FB_COUNT);
+  for (let i = 0; i < FB_COUNT; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.pow(Math.random(), 0.65) * 11.0;
+    fbPos[i * 3] = Math.cos(a) * r + (Math.random() - 0.5) * 0.9;
+    fbPos[i * 3 + 1] = Math.sin(a) * r * 0.72 + (Math.random() - 0.5) * 0.9;
+    fbPos[i * 3 + 2] = (Math.random() - 0.5) * 4.2;
+    fbSeed[i] = Math.random();
+  }
+  const fbGeo = new THREE.BufferGeometry();
+  fbGeo.setAttribute('position', new THREE.BufferAttribute(fbPos, 3));
+  fbGeo.setAttribute('aSeed', new THREE.BufferAttribute(fbSeed, 1));
+  const fbMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: sharedUniforms.uTime,
+      uColor1: morphUniforms.uColor1,
+      uColor2: morphUniforms.uColor2,
+      uOpacity: { value: 0.62 },
+    },
+    vertexShader: /* glsl */ `
+      uniform float uTime;
+      attribute float aSeed;
+      varying vec3 vColor;
+      varying float vA;
+      void main(){
+        vec3 p = position;
+        p.xy += vec2(
+          sin(uTime * 0.25 + aSeed * 31.0),
+          cos(uTime * 0.22 + aSeed * 27.0)
+        ) * 0.03;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = clamp((0.8 + aSeed * 1.8) * (26.0 / max(3.0, -mv.z)), 0.6, 5.0);
+        vA = 0.35 + 0.65 * (0.5 + 0.5 * sin(uTime * (0.4 + aSeed) + aSeed * 17.0));
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uColor1;
+      uniform vec3 uColor2;
+      uniform float uOpacity;
+      varying float vA;
+      varying vec3 vColor;
+      void main(){
+        float d = length(gl_PointCoord - 0.5);
+        float a = smoothstep(0.5, 0.06, d);
+        if(a < 0.01) discard;
+        vec3 c = mix(uColor1, uColor2, fract(gl_FragCoord.x * 0.017 + gl_FragCoord.y * 0.013));
+        gl_FragColor = vec4(c, a * vA * uOpacity);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+  });
+  const fallbackDust = new THREE.Points(fbGeo, fbMat);
+  fallbackDust.frustumCulled = false;
+  fallbackDust.renderOrder = -1;
+  scene.add(fallbackDust);
+
+  // Dreamy color nebula layers (large, low-alpha particles)
+  function makeNebulaLayer(count, radius, zSpan, sizeMul, opacity, c1, c2) {
+    const nPos = new Float32Array(count * 3);
+    const nSeed = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.pow(Math.random(), 0.78) * radius;
+      nPos[i * 3] = Math.cos(a) * r + (Math.random() - 0.5) * 8.0;
+      nPos[i * 3 + 1] = Math.sin(a) * r * 0.75 + (Math.random() - 0.5) * 6.0;
+      nPos[i * 3 + 2] = (Math.random() - 0.5) * zSpan;
+      nSeed[i] = Math.random();
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(nPos, 3));
+    geo.setAttribute('aSeed', new THREE.BufferAttribute(nSeed, 1));
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: sharedUniforms.uTime,
+        uOpacity: { value: opacity },
+        uColorA: { value: new THREE.Color(c1) },
+        uColorB: { value: new THREE.Color(c2) },
+        uSizeMul: { value: sizeMul },
+      },
+      vertexShader: /* glsl */ `
+        uniform float uTime;
+        uniform float uSizeMul;
+        attribute float aSeed;
+        varying float vA;
+        varying float vMix;
+        void main(){
+          vec3 p = position;
+          p.x += sin(uTime * 0.06 + aSeed * 31.0) * 0.5;
+          p.y += cos(uTime * 0.05 + aSeed * 27.0) * 0.35;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = clamp((4.0 + aSeed * 9.0) * uSizeMul * (16.0 / max(4.0, -mv.z)), 1.5, 18.0);
+          vA = 0.35 + 0.65 * (0.5 + 0.5 * sin(uTime * (0.08 + aSeed * 0.2) + aSeed * 12.0));
+          vMix = aSeed;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform float uOpacity;
+        uniform vec3 uColorA;
+        uniform vec3 uColorB;
+        varying float vA;
+        varying float vMix;
+        void main(){
+          float d = length(gl_PointCoord - 0.5);
+          float soft = smoothstep(0.5, 0.02, d);
+          if(soft < 0.01) discard;
+          vec3 c = mix(uColorA, uColorB, vMix);
+          gl_FragColor = vec4(c, soft * vA * uOpacity);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    return pts;
+  }
+  const nebulaLayerA = makeNebulaLayer(9000, 20.0, 14.0, 1.0, 0.06, '#6a2cff', '#22b8ff');
+  const nebulaLayerB = makeNebulaLayer(7000, 16.0, 12.0, 0.85, 0.05, '#ff4fd8', '#6a7dff');
+  nebulaLayerA.renderOrder = -3;
+  nebulaLayerB.renderOrder = -2;
+  scene.add(nebulaLayerA);
+  scene.add(nebulaLayerB);
+
+  /* ── Shape switching ── */
+  function switchShape(name) {
+    if (!shapes[name] || name === currentShapeName) return;
+    morphUniforms.tShapeA.value = shapes[currentShapeName];
+    morphUniforms.tShapeB.value = shapes[name];
+    morphUniforms.uMorphProgress.value = 0;
+    gsap.killTweensOf(morphUniforms.uMorphProgress);
+    gsap.to(morphUniforms.uMorphProgress, {
+      value: 1,
+      duration: 2.0,
+      ease: 'power2.inOut',
+      onComplete() {
+        morphUniforms.tShapeA.value = shapes[name];
+        morphUniforms.uMorphProgress.value = 0;
+        currentShapeName = name;
+      },
+    });
+    simUniforms.tTarget.value = shapes[name];
+  }
+
+  /* ── Post-processing ── */
+  const composer = new EffectComposer(renderer);
+  composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  composer.addPass(new RenderPass(scene, camera));
+
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.9, 0.8, 0.3,
+  );
+  composer.addPass(bloomPass);
+
+  const afterimagePass = new AfterimagePass(0.12);
+  composer.addPass(afterimagePass);
+  composer.addPass(new OutputPass());
+
+  /* ── Camera orbit ── */
+  const camRig = { breathe: 0, nudge: 0 };
+  gsap.to(camRig, { breathe: 0.1, duration: 6, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+
+  function updateCamera() {
+    const rad = 8 + camRig.breathe + camRig.nudge;
+    camera.position.set(0, 0, rad);
+    camera.lookAt(0, 0, 0);
+  }
+
+  /* ── Resize ── */
+  function onResize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    composer.setSize(w, h);
+    composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    bloomPass.resolution.set(w, h);
+  }
+  window.addEventListener('resize', onResize);
+
+  /* ── Mouse interaction ── */
+  const mouseNDC = new THREE.Vector2(0, 0);
+  const mouseRaycaster = new THREE.Raycaster();
+  let mouseInCanvas = false;
+  let targetRotationY = 0;
+  let currentRotationY = 0;
+
+  renderer.domElement.addEventListener('mousemove', (e) => {
+    mouseNDC.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    mouseInCanvas = true;
+    targetRotationY = mouseNDC.x * Math.PI * 0.12;
+    morphUniforms.uMouse.value.set(mouseNDC.x, mouseNDC.y);
+    treeApi.setPointer(mouseNDC.x, mouseNDC.y);
+  });
+
+  renderer.domElement.addEventListener('mouseleave', () => {
+    mouseInCanvas = false;
+    treeApi.setPointer(0, 0);
+  });
+
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    const hitStar = inspirationStarSystem.handlePointer(e.clientX, e.clientY);
+    if (!hitStar) {
+      simUniforms.uClickPulse.value = 1.4;
+    }
+  });
+
+  renderer.domElement.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    mouseNDC.x = (touch.clientX / window.innerWidth) * 2 - 1;
+    mouseNDC.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+    mouseInCanvas = true;
+    targetRotationY = mouseNDC.x * Math.PI * 0.12;
+    morphUniforms.uMouse.value.set(mouseNDC.x, mouseNDC.y);
+  }, { passive: true });
+
+  renderer.domElement.addEventListener('touchend', () => { mouseInCanvas = false; });
+
+  function updateMouse() {
+    if (mouseInCanvas) {
+      morphUniforms.uMouseActive.value = THREE.MathUtils.lerp(morphUniforms.uMouseActive.value, 1.0, 0.12);
+      mouseRaycaster.setFromCamera(mouseNDC, camera);
+      const dir = mouseRaycaster.ray.direction;
+      const orig = mouseRaycaster.ray.origin;
+      const tVal = -orig.dot(dir) / dir.dot(dir);
+      const closest = orig.clone().addScaledVector(dir, Math.max(0, tVal));
+      simUniforms.uMouseWorld.value.copy(closest);
+      simUniforms.uMouseActive.value = THREE.MathUtils.lerp(simUniforms.uMouseActive.value, 1.0, 0.12);
+    } else {
+      morphUniforms.uMouseActive.value *= 0.94;
+      simUniforms.uMouseActive.value *= 0.94;
+    }
+    simUniforms.uClickPulse.value *= 0.91;
+  }
+
+  /* ── Animate ── */
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.06);
+    const t = clock.elapsedTime;
+
+    updateMouse();
+    gpgpuStep(dt, t);
+
+    currentRotationY += (targetRotationY - currentRotationY) * 0.06;
+    particlePoints.rotation.y = currentRotationY;
+    particlePoints.rotation.z += 0.0003;
+    fallbackDust.rotation.y = currentRotationY * 0.35;
+    fallbackDust.rotation.z -= 0.00018;
+    nebulaLayerA.rotation.y += 0.00008;
+    nebulaLayerA.rotation.z -= 0.00003;
+    nebulaLayerB.rotation.y -= 0.00006;
+    nebulaLayerB.rotation.z += 0.00002;
+
+    constellationSystem.update(t, simUniforms);
+    inspirationStarSystem.update(t);
+    updateCamera();
+    composer.render(dt);
+  }
+
+  /* ── Intro animation ── */
+  function playIntroAnimation() {
+    bloomPass.strength = 1.25;
+    gsap.to(bloomPass, { strength: 0.9, duration: 3.0, ease: 'power1.out' });
+    const overlay = document.getElementById('intro-overlay');
+    if (overlay) gsap.delayedCall(0.4, () => overlay.classList.add('fade-out'));
+  }
+
+  /* ── API for controls ── */
+  const api = {
+    simUniforms,
+    sharedUniforms,
+    particleMaterial,
+    morphUniforms,
+    treeApi,
+    camera,
+    bloomPass,
+    afterimagePass,
+    constellationSystem,
+    inspirationStarSystem,
+    readParticlePositions,
+    texSize: SIZE,
+    switchShape,
+  };
+
+  initControls(api, camRig);
+  playIntroAnimation();
+  animate();
+}
+
+main().catch(console.error);
+  </script>
+  <script>
+    (function () {
+      var I18N = {
+        zh: {
+          pageTitle: '星空灵感 · Starfield Inspiration',
+          splash: '在星空中记录你的灵感<br/>每一次对话，都是一颗新星',
+          fruitUser: '你的想法', fruitAI: 'AI 回应',
+          btnNewChatTitle: '新对话', btnPanelTitle: '设置', btnFullscreenTitle: '全屏',
+          panelDeepSeek: 'DeepSeek AI',
+          panelHint: '填入 API Key 即可接入 DeepSeek 智能对话。',
+          panelStars: '粒子形态',
+          panelLines: '星座连线',
+          panelPost: '后处理',
+          labelPoint: '粒子大小', labelColorA: '色彩 A', labelColorB: '色彩 B',
+          labelSpread: '扩散度', labelMouseForce: '鼠标力度',
+          labelLineOp: '连线透明度', labelLineBright: '连线亮度',
+          labelBloom: 'Bloom', labelAfter: '残影',
+          shapeNebula: '星云', shapeHeart: '爱心', shapeSaturn: '土星', shapeFirework: '烟花',
+          textPlaceholder: '说说你的想法…',
+          searchPlaceholder: '🔍 搜索灵感星…',
+          btnVoiceTitle: '语音输入', btnSendTitle: '发送',
+          btnEnd: '✧ 结束对话',
+          btnLang: 'EN', btnLangTitle: 'Switch Language',
+        },
+        en: {
+          pageTitle: 'Starfield Inspiration · Immersive AI',
+          splash: 'Record your inspiration among the stars<br/>Each conversation becomes a new star',
+          fruitUser: 'Your Thought', fruitAI: 'AI Response',
+          btnNewChatTitle: 'New Chat', btnPanelTitle: 'Settings', btnFullscreenTitle: 'Fullscreen',
+          panelDeepSeek: 'DeepSeek AI',
+          panelHint: 'Enter your API key to enable DeepSeek chat.',
+          panelStars: 'Particle Shapes',
+          panelLines: 'Constellation Lines',
+          panelPost: 'Post Processing',
+          labelPoint: 'Particle Size', labelColorA: 'Color A', labelColorB: 'Color B',
+          labelSpread: 'Spread', labelMouseForce: 'Mouse Force',
+          labelLineOp: 'Line Opacity', labelLineBright: 'Line Brightness',
+          labelBloom: 'Bloom', labelAfter: 'Afterimage',
+          shapeNebula: 'Nebula', shapeHeart: 'Heart', shapeSaturn: 'Saturn', shapeFirework: 'Firework',
+          textPlaceholder: 'Share your idea...',
+          searchPlaceholder: '🔍 Search inspiration stars...',
+          btnVoiceTitle: 'Voice Input', btnSendTitle: 'Send',
+          btnEnd: '✧ End Session',
+          btnLang: '中文', btnLangTitle: '切换语言',
+        },
+      };
+
+      function getLang() {
+        var saved = localStorage.getItem('app-lang');
+        return (saved === 'en' || saved === 'zh') ? saved : 'zh';
+      }
+      function setText(el, text, asHtml) {
+        if (!el) return;
+        if (asHtml) el.innerHTML = text; else el.textContent = text;
+      }
+      function setLabel(sliderId, text) {
+        var slider = document.getElementById(sliderId);
+        if (!slider || !slider.parentElement) return;
+        var first = slider.parentElement.querySelector('span:first-child');
+        if (first) first.textContent = text;
+      }
+      function applyLang(lang) {
+        var t = I18N[lang] || I18N.zh;
+        document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+        document.title = t.pageTitle;
+        setText(document.getElementById('splash-text'), t.splash, true);
+        setText(document.querySelector('#fruit-detail .fd-user .fd-label'), t.fruitUser);
+        setText(document.querySelector('#fruit-detail .fd-ai .fd-label'), t.fruitAI);
+
+        var btnFullscreen = document.getElementById('btn-fullscreen');
+        var btnNew = document.getElementById('btn-new-chat');
+        var btnPanel = document.getElementById('btn-panel-toggle');
+        var btnVoice = document.getElementById('btn-voice');
+        var btnSend = document.getElementById('btn-send');
+        var btnEnd = document.getElementById('btn-end');
+        var btnLang = document.getElementById('btn-lang-toggle');
+        var searchEl = document.getElementById('search-stars');
+
+        if (btnFullscreen) btnFullscreen.title = t.btnFullscreenTitle;
+        if (btnNew) btnNew.title = t.btnNewChatTitle;
+        if (btnPanel) btnPanel.title = t.btnPanelTitle;
+        if (btnVoice) btnVoice.title = t.btnVoiceTitle;
+        if (btnSend) btnSend.title = t.btnSendTitle;
+        setText(btnEnd, t.btnEnd);
+        setText(btnLang, t.btnLang);
+        if (btnLang) btnLang.title = t.btnLangTitle;
+        if (searchEl) searchEl.placeholder = t.searchPlaceholder;
+
+        setText(document.querySelector('#control-panel h3:nth-of-type(1)'), t.panelDeepSeek);
+        setText(document.querySelector('#control-panel .hint'), t.panelHint);
+        setText(document.querySelector('#control-panel h3:nth-of-type(2)'), t.panelStars);
+        setText(document.querySelector('#control-panel h3:nth-of-type(3)'), t.panelLines);
+        setText(document.querySelector('#control-panel h3:nth-of-type(4)'), t.panelPost);
+
+        setLabel('sl-point', t.labelPoint);
+        setLabel('sl-spread', t.labelSpread);
+        setLabel('sl-mouse-force', t.labelMouseForce);
+        setLabel('sl-line-op', t.labelLineOp);
+        setLabel('sl-line-bright', t.labelLineBright);
+        setLabel('sl-bloom', t.labelBloom);
+        setLabel('sl-after', t.labelAfter);
+        var clAL = document.querySelector('#cl-a')?.parentElement?.querySelector('span:first-child');
+        if(clAL) clAL.textContent = t.labelColorA;
+        var clBL = document.querySelector('#cl-b')?.parentElement?.querySelector('span:first-child');
+        if(clBL) clBL.textContent = t.labelColorB;
+        document.querySelectorAll('.shape-btn').forEach(function(btn){
+          var key = 'shape' + btn.dataset.shape.charAt(0).toUpperCase() + btn.dataset.shape.slice(1);
+          if(t[key]) btn.textContent = t[key];
+        });
+
+        var input = document.getElementById('text-input');
+        if (input) input.placeholder = t.textPlaceholder;
+
+        window.__APP_LANG = lang;
+        window.dispatchEvent(new CustomEvent('app:lang-change', { detail: { lang: lang } }));
+      }
+
+      var currentLang = getLang();
+      applyLang(currentLang);
+      document.getElementById('btn-lang-toggle')?.addEventListener('click', function () {
+        currentLang = currentLang === 'zh' ? 'en' : 'zh';
+        localStorage.setItem('app-lang', currentLang);
+        applyLang(currentLang);
+      });
+    })();
+
+    document.getElementById('btn-panel-toggle')?.addEventListener('click', function(){
+      document.getElementById('control-panel')?.classList.toggle('hidden');
+    });
+    document.getElementById('btn-fullscreen')?.addEventListener('click', function(){
+      if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(function(){}); }
+      else { document.exitFullscreen(); }
+    });
+    document.getElementById('btn-new-chat')?.addEventListener('click', function(){
+      window.dispatchEvent(new CustomEvent('tree:new-chat'));
+    });
+    document.querySelectorAll('.panel input[type="range"]').forEach(function(el){
+      var span = document.getElementById(el.id.replace('sl-','lb-'));
+      function s(){ if(span) span.textContent = el.value; }
+      el.addEventListener('input', s); s();
+    });
+    document.addEventListener('click', function(e){
+      var fd = document.getElementById('fruit-detail');
+      if(fd && !fd.contains(e.target) && !e.target.classList.contains('fruit-node')){
+        fd.classList.remove('visible');
+      }
+    });
+  </script>
+</body>
+</html>
