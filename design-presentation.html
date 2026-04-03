@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星空靈感 — 設計與體驗簡報</title>
+  <style>
+    :root {
+      --bg: #050510;
+      --panel: #0c0c22;
+      --text: #d8e0f5;
+      --muted: #7a82a8;
+      --accent: #6b9ae8;
+      --line: #2a2858;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: "Segoe UI", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+    .deck {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(1rem, 4vw, 2.5rem);
+      background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(60, 80, 160, 0.22), transparent 55%),
+        radial-gradient(ellipse 80% 50% at 100% 100%, rgba(100, 60, 140, 0.12), transparent 50%),
+        var(--bg);
+    }
+    .slide {
+      display: none;
+      width: min(100%, 900px);
+      max-height: min(90vh, 720px);
+      overflow-y: auto;
+      padding: clamp(1.5rem, 3.5vw, 2.75rem);
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(12, 12, 34, 0.92);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(80, 120, 200, 0.06);
+      animation: fadeIn 0.35s ease;
+    }
+    .slide.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .slide h1 {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      font-weight: 600;
+      color: #a8c4ff;
+      letter-spacing: 0.04em;
+      line-height: 1.35;
+      margin-bottom: 0.75rem;
+    }
+    .slide h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+      margin-bottom: 1.1rem;
+    }
+    .slide p, .slide li {
+      font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+      line-height: 1.72;
+      color: rgba(216, 224, 245, 0.92);
+    }
+    .slide p { margin-bottom: 0.85rem; }
+    .slide ul { margin: 0.4rem 0 0.6rem 1.2rem; }
+    .slide li { margin-bottom: 0.45rem; }
+    .slide .tagline { color: var(--muted); font-size: 0.95rem; margin-top: 0.5rem; }
+    .slide .note {
+      margin-top: 1.25rem;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      background: rgba(107, 154, 232, 0.1);
+      border-left: 3px solid var(--accent);
+      font-size: 0.9rem;
+      color: #b8c8e8;
+    }
+    .slide-en {
+      margin-top: 1.35rem;
+      padding-top: 1.15rem;
+      border-top: 1px solid rgba(42, 40, 88, 0.85);
+    }
+    .slide-en .en-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.65rem;
+      opacity: 0.9;
+    }
+    .slide-en p, .slide-en li {
+      font-size: clamp(0.82rem, 1.85vw, 0.92rem);
+      line-height: 1.68;
+      color: rgba(180, 190, 220, 0.88);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    .slide-en p { margin-bottom: 0.65rem; }
+    .slide-en ul { margin: 0.35rem 0 0.5rem 1.05rem; }
+    .slide-en li { margin-bottom: 0.38rem; }
+    .slide-en h3.en-title {
+      font-size: clamp(0.95rem, 2vw, 1.05rem);
+      font-weight: 600;
+      color: #9eb6e0;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+    .slide-en .en-note {
+      margin-top: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      background: rgba(80, 100, 160, 0.12);
+      border-left: 2px solid rgba(107, 154, 232, 0.55);
+      font-size: 0.82rem;
+      color: #a0b0d0;
+    }
+    .controls .nav-bilingual {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+    }
+    .controls .nav-bilingual .sub {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: linear-gradient(to top, rgba(5, 5, 16, 0.95), transparent);
+      z-index: 10;
+    }
+    .controls button {
+      min-width: 44px;
+      min-height: 46px;
+      padding: 0.35rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(20, 20, 48, 0.85);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      transition: border-color 0.2s, background 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .controls button:hover { border-color: var(--accent); background: rgba(107, 154, 232, 0.12); }
+    .controls .counter { font-size: 13px; color: var(--muted); min-width: 5rem; text-align: center; }
+    .controls a {
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      margin-left: 0.5rem;
+    }
+    .controls a:hover { color: var(--accent); }
+    @media print {
+      body { overflow: auto; background: #fff; color: #111; }
+      .deck { display: block; height: auto; padding: 0; background: #fff; }
+      .slide {
+        display: block !important;
+        page-break-after: always;
+        max-height: none;
+        border: 1px solid #ccc;
+        box-shadow: none;
+        margin-bottom: 2rem;
+      }
+      .controls { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck" id="deck">
+    <section class="slide active" data-slide="0">
+      <h2>設計簡報</h2>
+      <h1>星空靈感<br /><span style="font-size:0.55em;font-weight:400;color:var(--muted);letter-spacing:0.08em;">Starfield Inspiration</span></h1>
+      <p class="tagline">沉浸式 AIGC 體驗 · 以視覺傳達與互動設計為核心</p>
+      <p class="note">方向鍵 ← → 換頁 · Home / End 至首末頁 · 可列印為 PDF 當書面稿</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h2 style="margin-bottom:0.5rem;">Design deck</h2>
+        <h3 class="en-title" style="font-size:1.35rem;">Starfield Inspiration</h3>
+        <p>Immersive AIGC experience — centered on visual communication and interaction design.</p>
+        <p class="en-note">Use ← → to change slides · Home / End for first / last · Print to PDF for a handout.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="1">
+      <h2>為什麼製作這個應用</h2>
+      <p>多數 AIGC 產品把「對話」塞進高度同質的聊天視窗：白底或暗色、氣泡列表、缺少空間感與情緒層次。對從事<strong>視覺傳達與創意發想</strong>的設計師而言，靈感往往短暫、碎片化，卻又需要被<strong>温柔地接住、結構化地延展</strong>。</p>
+      <p>我們想回答一個設計命題：<strong>若 AI 是創作夥伴，它的「容器」是否也應該承載創造力本身？</strong> 星空靈感以「可成長的星空」取代單調對話框，讓記錄與回顧靈感成為一場有儀式感、可沉浸的體驗，而不只是另一份聊天記錄。</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Why we built this</h3>
+        <p>Most AIGC products trap “conversation” inside look‑alike chat shells — light or dark, bubble lists, little sense of space or emotional depth. For designers in <strong>visual communication and ideation</strong>, sparks are often fleeting and fragmented, yet need to be <strong>held gently and extended into structure</strong>.</p>
+        <p>We posed one design question: <strong>If AI is a creative partner, shouldn’t its container carry creativity too?</strong> Starfield Inspiration replaces the flat chat box with a <strong>growing night sky</strong>, so capturing and revisiting ideas feels immersive and ritual — not just another chat log.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="2">
+      <h2>在視覺傳達設計流程中的使用</h2>
+      <ul>
+        <li><strong>發想與捕捉：</strong>以語音快速說出腦中畫面、關鍵字或情緒，避免打字打斷心流；適合靈感突現、手邊不便打字的情境。</li>
+        <li><strong>釐清與結構：</strong>透過 AI 的提問與回應，把模糊概念逐步收斂成可執行的方向（受眾、語氣、媒介、限制條件等）。</li>
+        <li><strong>視覺化「進度感」：</strong>每次來回在星空中留下連線與節點，讓抽象的思考過程具備<strong>可見的時間軸與關聯</strong>，接近設計師熟悉的「牆上貼滿草圖與連線」的工作方式。</li>
+        <li><strong>歸檔與回看：</strong>結束一輪對話後生成結構化卡片（標題、時間、摘要、行動），搭配搜尋與星空高亮，支援專案中後期的回溯與提案準備。</li>
+      </ul>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Use in the visual communication workflow</h3>
+        <ul>
+          <li><strong>Capture:</strong> Speak images, keywords, or mood by voice to avoid breaking flow — ideal when ideas appear suddenly or typing is awkward.</li>
+          <li><strong>Clarify &amp; structure:</strong> Through AI prompts and replies, fuzzy concepts become actionable (audience, tone, medium, constraints).</li>
+          <li><strong>Visible progress:</strong> Each turn leaves links and nodes in the sky, giving abstract thinking a <strong>visible timeline and relationships</strong> — closer to a wall of sketches and threads.</li>
+          <li><strong>Archive &amp; revisit:</strong> Ending a session yields structured cards (title, time, summary, actions); search highlights stars in the scene for late‑project reviews and presentations.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="3">
+      <h2>設計思維過程</h2>
+      <ul>
+        <li><strong>同理與定義：</strong>從設計師日常痛點出發——靈感易逝、工具介面冰冷、歷史靈感難以美感化整理——收斂成一句問題：如何讓「與 AI 共思」變得<strong>願意停留、容易回來</strong>？</li>
+        <li><strong>概念隱喻：</strong>選擇「星空／星座」作為核心隱喻：星星＝靈感節點，連線＝思路關聯，夜空＝專注與沉澱的情緒場域。</li>
+        <li><strong>體驗原型：</strong>先確立全螢幕粒子場景、底部輸入與「結束對話→靈感星」的主路徑，再疊加搜尋、卡片、多語與可調視覺參數，反覆調整<strong>可讀性與沉浸感</strong>的平衡。</li>
+        <li><strong>驗證直覺：</strong>以「是否減少機械感、是否強化儀式與記憶點」作為主觀可用性指標，迭代動畫節奏與介面層級。</li>
+      </ul>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Design thinking process</h3>
+        <ul>
+          <li><strong>Empathize &amp; define:</strong> From designer pain — fleeting sparks, cold UIs, messy history — we asked how co‑thinking with AI could feel <strong>worth staying in and easy to return to</strong>.</li>
+          <li><strong>Metaphor:</strong> Night sky / constellations — stars as idea nodes, lines as links, darkness as a calm emotional field.</li>
+          <li><strong>Prototype:</strong> Full‑screen particles, bottom input, and “end session → inspiration star” first; then search, cards, i18n, tunable visuals — iterating <strong>legibility vs. immersion</strong>.</li>
+          <li><strong>Sense‑check:</strong> Subjective criteria — less mechanical feel, stronger ritual and memory — guided motion pacing and UI hierarchy.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="4">
+      <h2>關鍵 UI／UX 決策（一）</h2>
+      <h1 style="font-size:1.15rem;color:#c8d8ff;">全螢幕星空場景，而非置中聊天面板</h1>
+      <p><strong>決策：</strong>主畫面由 Three.js 粒子星空佔滿視野，訊息以輕量「沉浸訊息流」浮於下緣，而非傳統左右氣泡欄。</p>
+      <p><strong>原因：</strong>視覺傳達工作者對<strong>場景、氛圍與層次</strong>敏感；邊界清楚的聊天框會暗示「事務性對答」。全螢幕場景把使用者放在「創作空間」裡，降低與一般聊天產品的聯想，並為後續連線、高亮、光球儀式預留同一套空間邏輯。</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Key UI/UX decision (1): Full‑screen starfield, not a centered chat panel</h3>
+        <p><strong>Decision:</strong> Three.js particles fill the view; messages appear as a light immersive stream along the bottom, not classic L/R bubbles.</p>
+        <p><strong>Why:</strong> Visual communicators read <strong>scene, mood, and depth</strong>; a boxed chat frame signals transactional Q&amp;A. The full canvas places people in a “studio” and sets one spatial language for links, highlights, and the orb ritual.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="5">
+      <h2>關鍵 UI／UX 決策（二）</h2>
+      <h1 style="font-size:1.15rem;color:#c8d8ff;">語音與文字並行，強調低打斷</h1>
+      <p><strong>決策：</strong>麥克風與文字欄同列於底欄，語音可作為主路徑之一。</p>
+      <p><strong>原因：</strong>發想階段常伴隨走動、畫草圖或盯著畫面；語音減少<strong>視線在鍵盤與靈感之間切換</strong>的成本。底欄固定位置符合單手與大螢幕操作習慣，避免浮動按鈕遮擋星空主體。</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Key UI/UX decision (2): Voice + text, low interruption</h3>
+        <p><strong>Decision:</strong> Mic and text field share one bottom bar; voice can be the primary path.</p>
+        <p><strong>Why:</strong> Ideation often happens while moving, sketching, or staring at the canvas — voice cuts <strong>gaze cost between keyboard and idea</strong>. A fixed bar suits one‑hand and large displays and avoids FABs covering the sky.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="6">
+      <h2>關鍵 UI／UX 決策（三）</h2>
+      <h1 style="font-size:1.15rem;color:#c8d8ff;">星座連線＋「靈感星」投擲儀式</h1>
+      <p><strong>決策：</strong>對話過程在星空中累積連線；按下「結束對話」時，以光球動畫將本輪對話收束為一顆持久節點。</p>
+      <p><strong>原因：</strong>設計師需要<strong>段落感</strong>——知道這一輪思考已被「封存」。動畫不只是裝飾，而是<strong>狀態轉換的確認回饋</strong>（類似存檔、合版、收筆），有助建立情緒上的滿足與記憶錨點。</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Key UI/UX decision (3): Constellation lines + “inspiration star” ritual</h3>
+        <p><strong>Decision:</strong> Dialogue adds links in the sky; “end session” plays an orb that settles into a lasting node.</p>
+        <p><strong>Why:</strong> Designers need <strong>closure</strong> — a sense this round of thinking is sealed. Motion is <strong>state-change feedback</strong> (like save, merge, or signing a sketch), building satisfaction and a memorable anchor.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="7">
+      <h2>關鍵 UI／UX 決策（四）</h2>
+      <h1 style="font-size:1.15rem;color:#c8d8ff;">靈感卡片、搜尋與星空高亮</h1>
+      <p><strong>決策：</strong>每輪對話產出帶標題、時間、摘要與行動的卡片；頂部搜尋可定位歷史靈感，並在星空中對應高亮。</p>
+      <p><strong>原因：</strong>純文字紀錄不利快速掃視與向他人展示；卡片化對齊設計師熟悉的<strong>mood board／專案條目</strong>心智模型。搜尋 + 空間高亮把「找資料」從捲動長列表，變成<strong>在記憶地圖上定位</strong>，強化工具與視覺思維的一致性。</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Key UI/UX decision (4): Cards, search, sky highlights</h3>
+        <p><strong>Decision:</strong> Each session yields a card (title, time, summary, actions); top search locates history and highlights matching stars.</p>
+        <p><strong>Why:</strong> Plain threads are hard to scan or present; cards match <strong>mood‑board / project‑entry</strong> mental models. Search + spatial highlight turns “find a file” into <strong>pinning a memory on a map</strong> — aligned with visual thinking.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="8">
+      <h2>關鍵 UI／UX 決策（五）</h2>
+      <h1 style="font-size:1.15rem;color:#c8d8ff;">設定收合、粒子形態與後製參數</h1>
+      <p><strong>決策：</strong>進階選項（API、粒子形態、Bloom、殘影等）收進側欄面板，預設不干擾主創作流。</p>
+      <p><strong>原因：</strong>專業使用者需要<strong>可調的視覺語彙</strong>以配合品牌或心境，但初學者不能被滑桿淹沒。分層資訊架構維持「預設即能用、需要時再深入」。</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Key UI/UX decision (5): Collapsed settings, shapes, post‑FX</h3>
+        <p><strong>Decision:</strong> Advanced options (API, particle shapes, bloom, afterimage, etc.) live in a side panel and stay out of the default flow.</p>
+        <p><strong>Why:</strong> Power users need a <strong>tunable visual language</strong> for brand or mood; beginners must not drown in sliders. Layered IA keeps “works by default, depth on demand.”</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="9">
+      <h2>開發過程（簡述）</h2>
+      <p>實作上以 <strong>Three.js</strong> 建構粒子與連線，<strong>GSAP</strong> 輔助節奏感較強的過場；對話層與星空層<strong>解耦</strong>，方便日後更換模型供應商。介面字串與產品敘事支援中／英切換，便於展示與協作。</p>
+      <p class="note">簡報重點置於<strong>設計意圖與體驗決策</strong>；技術棧為達成上述體驗的手段，而非目的本身。</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Implementation (brief)</h3>
+        <p><strong>Three.js</strong> drives particles and lines; <strong>GSAP</strong> handles punchier transitions. Chat and sky are <strong>decoupled</strong> so the model provider can change. UI copy and narrative support Chinese / English for demos and collaboration.</p>
+        <p class="en-note">This deck emphasizes <strong>design intent and UX choices</strong>; the stack is a means to that experience, not the goal.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="10">
+      <h2>結語</h2>
+      <h1 style="font-size:1.25rem;">把靈感交給一片會記住你的星空</h1>
+      <p>星空靈感嘗試證明：同一套語言模型能力，放在不同的<strong>空間隱喻、儀式與資訊架構</strong>中，會帶來截然不同的創作感受。設計師值得擁有不僅「好用」、而且<strong>願意久留</strong>的 AI 共創環境。</p>
+      <p class="tagline" style="margin-top:1rem;">簡報結束 · 感謝收看</p>
+      <div class="slide-en" lang="en">
+        <p class="en-label">English</p>
+        <h3 class="en-title">Closing</h3>
+        <p>Hand your sparks to a sky that remembers you.</p>
+        <p>Starfield Inspiration argues: the same model, placed in different <strong>spatial metaphors, rituals, and information architecture</strong>, changes how creation feels. Designers deserve AI spaces that are not only useful but <strong>worth staying in</strong>.</p>
+        <p class="tagline" style="margin-top:0.65rem;">End of deck · Thank you</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="controls">
+    <button type="button" id="btn-prev" aria-label="Previous slide · 上一頁">
+      <span class="nav-bilingual"><span>← 上一頁</span><span class="sub">Prev</span></span>
+    </button>
+    <span class="counter" id="counter">1 / 11</span>
+    <button type="button" id="btn-next" aria-label="Next slide · 下一頁">
+      <span class="nav-bilingual"><span>下一頁 →</span><span class="sub">Next</span></span>
+    </button>
+    <a href="./index.html"><span class="nav-bilingual" style="display:inline-flex;"><span>返回主應用</span><span class="sub">Back to app</span></span></a>
+  </div>
+
+  <script>
+    (function () {
+      var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+      var i = 0;
+      var counter = document.getElementById('counter');
+      function show(n) {
+        i = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach(function (s, j) { s.classList.toggle('active', j === i); });
+        if (counter) counter.textContent = i + 1 + ' / ' + slides.length;
+      }
+      document.getElementById('btn-prev').addEventListener('click', function () { show(i - 1); });
+      document.getElementById('btn-next').addEventListener('click', function () { show(i + 1); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+          e.preventDefault();
+          show(i + 1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          e.preventDefault();
+          show(i - 1);
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          show(0);
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          show(slides.length - 1);
+        }
+      });
+      show(0);
+    })();
+  </script>
+</body>
+</html>
